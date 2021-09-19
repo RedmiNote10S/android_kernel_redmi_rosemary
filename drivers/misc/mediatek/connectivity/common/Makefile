@@ -34,10 +34,6 @@ ifeq ($(CONFIG_MTK_COMBO_CHIP),)
     $(error CONFIG_MTK_COMBO_CHIP not defined)
 endif
 
-ifeq ($(TARGET_BUILD_VARIANT),$(filter $(TARGET_BUILD_VARIANT),userdebug user))
-    #ldflags-y += -s
-endif
-
 # Force build fail on modpost warning
 KBUILD_MODPOST_FAIL_ON_WARNINGS := y
 ###############################################################################
@@ -220,10 +216,6 @@ endif
 # Customer eng/userdebug load: Support
 # Customer user load: Not support
 
-ifneq ($(TARGET_BUILD_VARIANT),user)
-	ccflags-y += -D CFG_WMT_STEP
-endif
-
 ifeq ($(findstring evb, $(MTK_PROJECT)), evb)
 ccflags-y += -D CFG_WMT_EVB
 endif
@@ -281,8 +273,5 @@ endif
 $(MODULE_NAME)-objs += debug_utility/ring.o
 $(MODULE_NAME)-objs += debug_utility/ring_emi.o
 $(MODULE_NAME)-objs += debug_utility/connsys_debug_utility.o
-###############################################################################
-# test
-###############################################################################
 
 endif
