@@ -46,14 +46,14 @@
 int __attribute__ ((weak))
 IMM_IsAdcInitReady(void)
 {
-	pr_notice("E_WF: %s doesn't exist\n", __func__);
+	pr_err("E_WF: %s doesn't exist\n", __func__);
 	return 0;
 }
 
 int __attribute__ ((weak))
 IMM_GetOneChannelValue(int dwChannel, int data[4], int *rawdata)
 {
-	pr_notice("E_WF: %s doesn't exist\n", __func__);
+	pr_err("E_WF: %s doesn't exist\n", __func__);
 	return -1;
 }
 #endif
@@ -106,7 +106,7 @@ do {                                    \
 } while (0)
 
 #define mtkts_btsmcam_printk(fmt, args...) \
-pr_notice("[Thermal/TZ/BTSMCAM]" fmt, ##args)
+pr_debug("[Thermal/TZ/BTSMCAM]" fmt, ##args)
 
 
 #if defined(CONFIG_MEDIATEK_MT6577_AUXADC)
@@ -1137,9 +1137,8 @@ void mtkts_btsmcam_prepare_table(int table_num)
 		break;
 	}
 
-	pr_notice("[Thermal/TZ/BTSMCAM] %s table_num=%d\n",
+	pr_debug("[Thermal/TZ/BTSMCAM] %s table_num=%d\n",
 						__func__, table_num);
-
 }
 
 static int mtkts_btsmcam_param_read(struct seq_file *m, void *v)

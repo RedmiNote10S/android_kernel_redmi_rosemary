@@ -47,7 +47,7 @@ do { \
 	pr_debug("[Thermal/tzcharger]" fmt, ##args)
 
 #define mtktscharger_pr_notice(fmt, args...) \
-	pr_notice("[Thermal/tzcharger]" fmt, ##args)
+	pr_err("[Thermal/tzcharger]" fmt, ##args)
 
 static kuid_t uid = KUIDT_INIT(0);
 static kgid_t gid = KGIDT_INIT(1000);
@@ -376,10 +376,10 @@ struct thermal_cooling_device *cdev, unsigned long state)
 {
 	cl_dev_sysrst_state = state;
 	if (cl_dev_sysrst_state == 1) {
-		pr_notice("[Thermal/mtktscharger_sysrst] reset, reset, reset!!!\n");
-		pr_notice("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-		pr_notice("*****************************************\n");
-		pr_notice("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+		pr_debug("[Thermal/mtktscharger_sysrst] reset, reset, reset!!!\n");
+		pr_debug("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+		pr_debug("*****************************************\n");
+		pr_debug("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 
 		/* To trigger data abort to reset the system
 		 * for thermal protection.
