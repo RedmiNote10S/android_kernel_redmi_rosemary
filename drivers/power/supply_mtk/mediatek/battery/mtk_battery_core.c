@@ -349,7 +349,7 @@ int gauge_get_nag_dltv(void)
 /* ============================================================ */
 bool __attribute__ ((weak)) mt_usb_is_device(void)
 {
-	pr_notice_once("%s: usb is not ready\n", __func__);
+	pr_err("%s: usb is not ready\n", __func__);
 	return false;
 }
 
@@ -2205,7 +2205,7 @@ void fg_bat_plugout_int_handler_gm25(void)
 	bool is_bat_exist;
 
 	is_bat_exist = pmic_is_battery_exist();
-	pr_info("%s: bat_exist: %d\n", __func__, is_bat_exist);
+	pr_debug("%s: bat_exist: %d\n", __func__, is_bat_exist);
 
 	if (fg_interrupt_check() == false)
 		return;
@@ -2525,7 +2525,7 @@ void fg_daemon_send_data(
 	prcv = (struct fgd_cmd_param_t_6 *)rcv;
 	pret = (struct fgd_cmd_param_t_6 *)ret;
 
-	bm_trace("%s type:%d, tsize:%d size:%d idx:%d\n",
+	bm_debug("%s type:%d, tsize:%d size:%d idx:%d\n",
 		__func__,
 		prcv->type,
 		prcv->total_size,
@@ -3575,7 +3575,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 		gauge_set_nag_en(nafg_zcv_en);
 
-		bm_trace(
+		bm_debug(
 			"[fr] FG_DAEMON_CMD_SET_NAG_ZCV_EN = %d\n",
 			nafg_zcv_en);
 	}
@@ -3854,7 +3854,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 					sizeof(gm.gdev->fg_hw_info.ncar));
 			}
 
-			bm_trace(
+			bm_debug(
 				"FG_DAEMON_CMD_GET_HW_INFO(NCAR):%d %d, cmdtype:%d\n",
 				gm.bat_cycle_ncar,
 				gm.gdev->fg_hw_info.ncar, cmdtype);
@@ -3865,7 +3865,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 				&gm.hw_status, intr_no);
 		}
 
-		bm_trace(
+		bm_debug(
 			"[fr] FG_DAEMON_CMD_GET_HW_INFO = %d\n", intr_no);
 	}
 	break;

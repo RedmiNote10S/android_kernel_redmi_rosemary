@@ -1475,7 +1475,7 @@ static int rt9750_probe(struct i2c_client *i2c,
 	int ret = 0;
 	struct rt9750_info *info = NULL;
 
-	pr_info("%s: %s\n", __func__, RT9750_DRV_VERSION);
+	pr_debug("%s: %s\n", __func__, RT9750_DRV_VERSION);
 
 	info = devm_kzalloc(&i2c->dev, sizeof(struct rt9750_info), GFP_KERNEL);
 	if (!info)
@@ -1574,7 +1574,7 @@ static int rt9750_remove(struct i2c_client *i2c)
 	int ret = 0;
 	struct rt9750_info *info = i2c_get_clientdata(i2c);
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (info) {
 #ifdef CONFIG_RT_REGMAP
@@ -1591,7 +1591,7 @@ static int rt9750_remove(struct i2c_client *i2c)
 
 static void rt9750_shutdown(struct i2c_client *i2c)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 }
 
 static const struct i2c_device_id rt9750_i2c_id[] = {
@@ -1633,15 +1633,15 @@ static int __init rt9750_init(void)
 	int ret = 0;
 
 #ifdef CONFIG_OF
-	pr_info("%s: with dts\n", __func__);
+	pr_debug("%s: with dts\n", __func__);
 #else
-	pr_info("%s: without dts\n", __func__);
+	pr_debug("%s: without dts\n", __func__);
 	i2c_register_board_info(RT9750_BUSNUM, &rt9750_i2c_board_info, 1);
 #endif
 
 	ret = i2c_add_driver(&rt9750_i2c_driver);
 	if (ret < 0)
-		pr_notice("%s: register i2c driver failed\n", __func__);
+		pr_err("%s: register i2c driver failed\n", __func__);
 
 	return ret;
 }

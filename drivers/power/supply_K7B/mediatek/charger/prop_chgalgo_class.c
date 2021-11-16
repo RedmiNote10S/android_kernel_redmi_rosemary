@@ -634,24 +634,24 @@ static void pca_init_attrs(struct device_type *dev_type)
 
 static int __init pca_class_init(void)
 {
-	pr_info("%s (%s)\n", __func__, PROP_CHGALGO_CLASS_VERSION);
+	pr_debug("%s (%s)\n", __func__, PROP_CHGALGO_CLASS_VERSION);
 
 	pca_class = class_create(THIS_MODULE, "prop_chgalgo_class");
 	if (IS_ERR(pca_class)) {
-		pr_info("%s fail(%ld)\n", __func__, PTR_ERR(pca_class));
+		pr_err("%s fail(%ld)\n", __func__, PTR_ERR(pca_class));
 		return PTR_ERR(pca_class);
 	}
 	pca_init_attrs(&pca_dev_type);
 	pca_class->suspend = NULL;
 	pca_class->resume = NULL;
 
-	pr_info("%s successfully\n", __func__);
+	pr_debug("%s successfully\n", __func__);
 	return 0;
 }
 
 static void __exit pca_class_exit(void)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	class_destroy(pca_class);
 }
 

@@ -236,12 +236,12 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 		if (info->stop_pdc_with_dis_hv == true) {
 			charger_dev_get_input_current(info->chg1_dev, &pdata->input_current_limit);
 			charger_dev_get_charging_current(info->chg1_dev, &pdata->charging_current_limit);
-			pr_info("stop pdc with disable hv charging, keep AICR = %dmA, ICHG = %dmA\n",
+			pr_debug("stop pdc with disable hv charging, keep AICR = %dmA, ICHG = %dmA\n",
 				pdata->input_current_limit/1000, pdata->charging_current_limit/1000);
 		} else {
 			pdata->charging_current_limit = 3000000;
 			pdata->input_current_limit = 3000000;
-			pr_info("PD set ICHG = 3000mA, AICR = 3000mA\n");
+			pr_debug("PD set ICHG = 3000mA, AICR = 3000mA\n");
 		}
 		rc = power_supply_get_property(battery_psy,POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,&temp_level);
 		if (rc < 0) {
@@ -289,12 +289,12 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 			info->usb_type == POWER_SUPPLY_TYPE_USB_HVDCP_3_PLUS) {
 			pdata->charging_current_limit = 3000000;
 			pdata->input_current_limit = 3000000;
-			pr_info("QC set ICHG = 3000mA, AICR = 3000mA\n");
+			pr_debug("QC set ICHG = 3000mA, AICR = 3000mA\n");
 		} else if (info->usb_type == POWER_SUPPLY_TYPE_USB_HVDCP
 			&& (swchgalg->vbus_mv > HVDCP2P0_VOLATGE)) {
 			pdata->charging_current_limit = 2400000;
 			pdata->input_current_limit = 1500000;
-			pr_info("QC2 set AICR = 1500mA\n");
+			pr_debug("QC2 set AICR = 1500mA\n");
 		}
 #ifdef CONFIG_BQ2597X_CHARGE_PUMP
 		charger_manager_set_prop_system_temp_level(info->temp_level);
@@ -544,7 +544,7 @@ static int set_bq_charge_done(struct charger_manager *info, bool enable)
 	if (!info->bq_psy)
 		info->bq_psy = power_supply_get_by_name("bq2597x-standalone");
 
-	pr_info("set bq charge done enable=%d\n", enable);
+	pr_debug("set bq charge done enable=%d\n", enable);
 	val.intval = enable;
 	if ((info) && (info->bq_psy)) {
 		ret = power_supply_set_property(info->bq_psy,
@@ -564,7 +564,7 @@ static int set_hv_charge_enable(struct charger_manager *info, bool enable)
 	if (!info->bq_psy)
 		info->bq_psy = power_supply_get_by_name("bq2597x-standalone");
 
-	pr_info("set hv charge enable=%d\n", enable);
+	pr_debug("set hv charge enable=%d\n", enable);
 	val.intval = enable;
 	if ((info) && (info->bq_psy)) {
 		ret = power_supply_set_property(info->bq_psy,
@@ -704,7 +704,7 @@ static int mtk_switch_chr_pe50_run(struct charger_manager *info)
 	ret = pe50_run();
 
 	if (ret == 1) {
-		pr_info("retry pe5\n");
+		pr_debug("retry pe5\n");
 		goto retry;
 	}
 
@@ -1388,11 +1388,11 @@ static int charger_dev_event(struct notifier_block *nb,
 	switch (event) {
 	case CHARGER_DEV_NOTIFY_EOC:
 		charger_manager_notifier(info, CHARGER_NOTIFY_EOC);
-		pr_info("%s: end of charge\n", __func__);
+		pr_debug("%s: end of charge\n", __func__);
 		break;
 	case CHARGER_DEV_NOTIFY_RECHG:
 		charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
-		pr_info("%s: recharge\n", __func__);
+		pr_debug("%s: recharge\n", __func__);
 		break;
 	case CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT:
 		info->safety_timeout = true;

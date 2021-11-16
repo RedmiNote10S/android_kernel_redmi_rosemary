@@ -179,24 +179,24 @@ static void usbpd_mi_vdm_received_cb(struct mtk_pd_adapter_info *info,
 	usb_psy = power_supply_get_by_name("usb");
 
 	cmd = UVDM_HDR_CMD(uvdm.uvdm_data[0]);
-	pr_info("cmd = %d\n", cmd);
+	pr_debug("cmd = %d\n", cmd);
 
-	pr_info("uvdm.ack: %d, uvdm.uvdm_cnt: %d, uvdm.uvdm_svid: 0x%04x\n",
+	pr_debug("uvdm.ack: %d, uvdm.uvdm_cnt: %d, uvdm.uvdm_svid: 0x%04x\n",
 			uvdm.ack, uvdm.uvdm_cnt, uvdm.uvdm_svid);
 
 	switch (cmd) {
 	case USBPD_UVDM_CHARGER_VERSION:
 		info->adapter_dev->vdm_data.ta_version = uvdm.uvdm_data[1];
-		pr_info("ta_version:%x\n", info->adapter_dev->vdm_data.ta_version);
+		pr_debug("ta_version:%x\n", info->adapter_dev->vdm_data.ta_version);
 		break;
 	case USBPD_UVDM_CHARGER_TEMP:
 		info->adapter_dev->vdm_data.ta_temp = (uvdm.uvdm_data[1] & 0xFFFF) * 10;
-		pr_info("info->adapter_dev->vdm_data.ta_temp:%d\n", info->adapter_dev->vdm_data.ta_temp);
+		pr_debug("info->adapter_dev->vdm_data.ta_temp:%d\n", info->adapter_dev->vdm_data.ta_temp);
 		break;
 	case USBPD_UVDM_CHARGER_VOLTAGE:
 		info->adapter_dev->vdm_data.ta_voltage = (uvdm.uvdm_data[1] & 0xFFFF) * 10;
 		info->adapter_dev->vdm_data.ta_voltage *= 1000; /*V->mV*/
-		pr_info("ta_voltage:%d\n", info->adapter_dev->vdm_data.ta_voltage);
+		pr_debug("ta_voltage:%d\n", info->adapter_dev->vdm_data.ta_voltage);
 
 		if (usb_psy) {
 			ret = power_supply_get_property(usb_psy,
@@ -206,7 +206,7 @@ static void usbpd_mi_vdm_received_cb(struct mtk_pd_adapter_info *info,
 				break;
 			}
 			usb_voltage = val.intval;
-			pr_info("usb voltage now:%d\n", usb_voltage);
+			pr_debug("usb voltage now:%d\n", usb_voltage);
 			ret = power_supply_get_property(usb_psy,
 				POWER_SUPPLY_PROP_INPUT_CURRENT_NOW, &val);
 			if (ret) {
@@ -214,22 +214,22 @@ static void usbpd_mi_vdm_received_cb(struct mtk_pd_adapter_info *info,
 				break;
 			}
 			usb_current = val.intval / 1000;
-			pr_info("usb current now:%d\n", usb_current);
+			pr_debug("usb current now:%d\n", usb_current);
 
 			r_cable = (info->adapter_dev->vdm_data.ta_voltage - usb_voltage) / usb_current;
-			pr_info("usb r_cable now:%dmohm\n", r_cable);
+			pr_debug("usb r_cable now:%dmohm\n", r_cable);
 		}
 		break;
 	case USBPD_UVDM_SESSION_SEED:
 		for (i = 0; i < USBPD_UVDM_SS_LEN; i++) {
 			info->adapter_dev->vdm_data.s_secert[i] = uvdm.uvdm_data[i+1];
-			pr_info("usbpd s_secert uvdm.uvdm_data[%d]=0x%x", i+1, uvdm.uvdm_data[i+1]);
+			pr_debug("usbpd s_secert uvdm.uvdm_data[%d]=0x%x", i+1, uvdm.uvdm_data[i+1]);
 		}
 		break;
 	case USBPD_UVDM_AUTHENTICATION:
 		for (i = 0; i < USBPD_UVDM_SS_LEN; i++) {
 			info->adapter_dev->vdm_data.digest[i] = uvdm.uvdm_data[i+1];
-			pr_info("usbpd digest[%d]=0x%x", i+1, uvdm.uvdm_data[i+1]);
+			pr_debug("usbpd digest[%d]=0x%x", i+1, uvdm.uvdm_data[i+1]);
 		}
 		break;
 	default:
@@ -614,7 +614,7 @@ static int pd_get_svid(struct adapter_device *dev)
 	if (info == NULL)
 		return MTK_ADAPTER_ERROR;
 
-	pr_info("%s: enter\n", __func__);
+	pr_debug("%s: enter\n", __func__);
 	if (info->adapter_dev->adapter_svid != 0)
 		return MTK_ADAPTER_OK;
 
@@ -630,21 +630,21 @@ static int pd_get_svid(struct adapter_device *dev)
 
 	ret = tcpm_inquire_pd_partner_inform(info->tcpc, pd_vdos);
 	if (ret == TCPM_SUCCESS) {
-		pr_info("find adapter id success.\n");
+		pr_debug("find adapter id success.\n");
 		for (i = 0; i < 8; i++)
-			pr_info("VDO[%d] : %08x\n", i, pd_vdos[i]);
+			pr_debug("VDO[%d] : %08x\n", i, pd_vdos[i]);
 
 		info->adapter_dev->adapter_svid = pd_vdos[0] & 0x0000FFFF;
 		info->adapter_dev->adapter_id = pd_vdos[2] & 0x0000FFFF;
-		pr_info("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
-		pr_info("adapter_id = %08x\n", info->adapter_dev->adapter_id);
+		pr_debug("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
+		pr_debug("adapter_id = %08x\n", info->adapter_dev->adapter_id);
 
 		ret = tcpm_inquire_pd_partner_svids(info->tcpc, info->adapter_svid_list);
-		pr_info("[%s] tcpm_inquire_pd_partner_svids, ret=%d!\n", __func__, ret);
+		pr_debug("[%s] tcpm_inquire_pd_partner_svids, ret=%d!\n", __func__, ret);
 		if (ret == TCPM_SUCCESS) {
-			pr_info("discover svid number is %d\n", info->adapter_svid_list->cnt);
+			pr_debug("discover svid number is %d\n", info->adapter_svid_list->cnt);
 			for (i = 0; i < info->adapter_svid_list->cnt; i++) {
-				pr_info("SVID[%d] : %04x\n", i, info->adapter_svid_list->svids[i]);
+				pr_debug("SVID[%d] : %04x\n", i, info->adapter_svid_list->svids[i]);
 				if (info->adapter_svid_list->svids[i] == USB_PD_MI_SVID)
 					info->adapter_dev->adapter_svid = USB_PD_MI_SVID;
 			}
@@ -657,10 +657,10 @@ static int pd_get_svid(struct adapter_device *dev)
 			info->adapter_dev->adapter_id = cap_ext.pid & 0x0000FFFF;
 			info->adapter_dev->adapter_fw_ver = cap_ext.fw_ver & 0x0000FFFF;
 			info->adapter_dev->adapter_hw_ver = cap_ext.hw_ver & 0x0000FFFF;
-			pr_info("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
-			pr_info("adapter_id = %08x\n", info->adapter_dev->adapter_id);
-			pr_info("adapter_fw_ver = %08x\n", info->adapter_dev->adapter_fw_ver);
-			pr_info("adapter_hw_ver = %08x\n", info->adapter_dev->adapter_hw_ver);
+			pr_debug("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
+			pr_debug("adapter_id = %08x\n", info->adapter_dev->adapter_id);
+			pr_debug("adapter_fw_ver = %08x\n", info->adapter_dev->adapter_fw_ver);
+			pr_debug("adapter_hw_ver = %08x\n", info->adapter_dev->adapter_hw_ver);
 		} else {
 			chr_err("[%s] get adapter message failed!\n", __func__);
 			return MTK_ADAPTER_ERROR;
@@ -683,20 +683,20 @@ static int pd_get_svid(struct adapter_device *dev)
 	if (info == NULL)
 		return MTK_ADAPTER_ERROR;
 
-	pr_info("%s: enter\n", __func__);
+	pr_debug("%s: enter\n", __func__);
 	if (info->adapter_dev->adapter_svid != 0)
 		return MTK_ADAPTER_OK;
 
 	ret = tcpm_inquire_pd_partner_inform(info->tcpc, pd_vdos);
 	if (ret == TCPM_SUCCESS) {
-		pr_info("find adapter id success.\n");
+		pr_debug("find adapter id success.\n");
 		for (i = 0; i < 8; i++)
-			pr_info("VDO[%d] : %08x\n", i, pd_vdos[i]);
+			pr_debug("VDO[%d] : %08x\n", i, pd_vdos[i]);
 
 		info->adapter_dev->adapter_svid = pd_vdos[0] & 0x0000FFFF;
 		info->adapter_dev->adapter_id = pd_vdos[2];
-		pr_info("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
-		pr_info("adapter_id = %08x\n", info->adapter_dev->adapter_id);
+		pr_debug("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
+		pr_debug("adapter_id = %08x\n", info->adapter_dev->adapter_id);
 	}
 
 	ret = tcpm_dpm_pd_get_source_cap_ext(info->tcpc,
@@ -706,10 +706,10 @@ static int pd_get_svid(struct adapter_device *dev)
 		info->adapter_dev->adapter_id = cap_ext.pid & 0x0000FFFF;
 		info->adapter_dev->adapter_fw_ver = cap_ext.fw_ver & 0x0000FFFF;
 		info->adapter_dev->adapter_hw_ver = cap_ext.hw_ver & 0x0000FFFF;
-		pr_info("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
-		pr_info("adapter_id = %08x\n", info->adapter_dev->adapter_id);
-		pr_info("adapter_fw_ver = %08x\n", info->adapter_dev->adapter_fw_ver);
-		pr_info("adapter_hw_ver = %08x\n", info->adapter_dev->adapter_hw_ver);
+		pr_debug("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
+		pr_debug("adapter_id = %08x\n", info->adapter_dev->adapter_id);
+		pr_debug("adapter_fw_ver = %08x\n", info->adapter_dev->adapter_fw_ver);
+		pr_debig("adapter_hw_ver = %08x\n", info->adapter_dev->adapter_hw_ver);
 	} else {
 		chr_err("[%s] get adapter message failed!\n", __func__);
 		//return MTK_ADAPTER_ERROR;
@@ -729,9 +729,9 @@ static int pd_get_svid(struct adapter_device *dev)
 
 	ret = tcpm_inquire_pd_partner_svids(info->tcpc, info->adapter_svid_list);
 	if (ret == TCPM_SUCCESS) {
-		pr_info("discover svid number is %d\n", info->adapter_svid_list->cnt);
+		pr_debug("discover svid number is %d\n", info->adapter_svid_list->cnt);
 		for (i = 0; i < info->adapter_svid_list->cnt; i++) {
-			pr_info("SVID[%d] : %04x\n", i, info->adapter_svid_list->svids[i]);
+			pr_debug("SVID[%d] : %04x\n", i, info->adapter_svid_list->svids[i]);
 			if (info->adapter_svid_list->svids[i] == USB_PD_MI_SVID)
 				info->adapter_dev->adapter_svid = USB_PD_MI_SVID;
 		}
@@ -756,14 +756,14 @@ static int pd_get_id(struct adapter_device *dev)
 
 	ret = tcpm_inquire_pd_partner_inform(info->tcpc, pd_vdos);
 	if (ret == TCPM_SUCCESS) {
-		pr_info("find adapter id success.\n");
+		pr_debug("find adapter id success.\n");
 		for (i = 0; i < 8; i++)
-			pr_info("VDO[%d] : %08x\n", i, pd_vdos[i]);
+			pr_debug("VDO[%d] : %08x\n", i, pd_vdos[i]);
 
 		info->adapter_dev->adapter_svid = pd_vdos[0] & 0x0000FFFF;
 		info->adapter_dev->adapter_id = pd_vdos[2];
-		pr_info("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
-		pr_info("adapter_id = %08x\n", info->adapter_dev->adapter_id);
+		pr_debug("adapter_svid = %04x\n", info->adapter_dev->adapter_svid);
+		pr_debug("adapter_id = %08x\n", info->adapter_dev->adapter_id);
 	}
 
 	return MTK_ADAPTER_OK;
@@ -798,10 +798,10 @@ void charToint(char *str, int input_len, unsigned int *out, unsigned int *outlen
 		*outlen = *outlen + 1;
 	}
 
-	pr_info("%s: outlen = %d\n", __func__, *outlen);
+	pr_debug("%s: outlen = %d\n", __func__, *outlen);
 	for (i = 0; i < *outlen; i++)
-		pr_info("%s: out[%d] = %08x\n", __func__, i, out[i]);
-	pr_info("%s: char to int done.\n", __func__);
+		pr_debug("%s: out[%d] = %08x\n", __func__, i, out[i]);
+	pr_debug("%s: char to int done.\n", __func__);
 }
 
 static int tcp_dpm_event_cb_uvdm(struct tcpc_device *tcpc, int ret,
@@ -810,7 +810,7 @@ static int tcp_dpm_event_cb_uvdm(struct tcpc_device *tcpc, int ret,
 	int i;
 	struct tcp_dpm_custom_vdm_data vdm_data = event->tcp_dpm_data.vdm_data;
 
-	pr_info("%s: vdm_data.cnt = %d\n", __func__, vdm_data.cnt);
+	pr_debug("%s: vdm_data.cnt = %d\n", __func__, vdm_data.cnt);
 	for (i = 0; i < vdm_data.cnt; i++)
 		chr_info("%s vdm_data.vdos[%d] = 0x%08x", __func__, i,
 			vdm_data.vdos[i]);
@@ -839,11 +839,11 @@ static int pd_request_vdm_cmd(struct adapter_device *dev,
 	if (in_interrupt()) {
 		int_data = kmalloc(40, GFP_ATOMIC);
 		vdm_data = kmalloc(sizeof(*vdm_data), GFP_ATOMIC);
-		pr_info("%s: kmalloc atomic ok.\n", __func__);
+		pr_debug("%s: kmalloc atomic ok.\n", __func__);
 	} else {
 		int_data = kmalloc(40, GFP_KERNEL);
 		vdm_data = kmalloc(sizeof(*vdm_data), GFP_KERNEL);
-		pr_info("%s: kmalloc kernel ok.\n", __func__);
+		pr_debug("%s: kmalloc kernel ok.\n", __func__);
 	}
 	memset(int_data, 0, 40);
 
@@ -879,7 +879,7 @@ static int pd_request_vdm_cmd(struct adapter_device *dev,
 
 		for (i = 0; i < USBPD_UVDM_VERIFIED_LEN; i++)
 			vdm_data->vdos[i + 1] = int_data[i];
-		pr_info("verify-0: %08x\n", vdm_data->vdos[1]);
+		pr_debug("verify-0: %08x\n", vdm_data->vdos[1]);
 
 		rc = tcpm_dpm_send_custom_vdm(info->tcpc, vdm_data, &cb_data);//&tcp_dpm_evt_cb_null
 		if (rc < 0) {
@@ -895,7 +895,7 @@ static int pd_request_vdm_cmd(struct adapter_device *dev,
 			vdm_data->vdos[i + 1] = int_data[i];
 
 		for (i = 0; i < USBPD_UVDM_SS_LEN; i++)
-			pr_info("%08x\n", vdm_data->vdos[i+1]);
+			pr_debug("%08x\n", vdm_data->vdos[i+1]);
 
 		rc = tcpm_dpm_send_custom_vdm(info->tcpc, vdm_data, &cb_data);//&tcp_dpm_evt_cb_null
 		if (rc < 0) {
@@ -1058,11 +1058,11 @@ static int mtk_pd_adapter_probe(struct platform_device *pdev)
 	info->tcpc = tcpc_dev_get_by_name("type_c_port0");
 	if (info->tcpc == NULL) {
 		if (is_deferred == false) {
-			pr_info("%s: tcpc device not ready, defer\n", __func__);
+			pr_warn("%s: tcpc device not ready, defer\n", __func__);
 			is_deferred = true;
 			ret = -EPROBE_DEFER;
 		} else {
-			pr_info("%s: failed to get tcpc device\n", __func__);
+			pr_err("%s: failed to get tcpc device\n", __func__);
 			ret = -EINVAL;
 		}
 		goto err_get_tcpc_dev;
@@ -1072,7 +1072,7 @@ static int mtk_pd_adapter_probe(struct platform_device *pdev)
 	ret = register_tcp_dev_notifier(info->tcpc, &info->pd_nb,
 				TCP_NOTIFY_TYPE_USB | TCP_NOTIFY_TYPE_MISC | TCP_NOTIFY_TYPE_MODE);
 	if (ret < 0) {
-		pr_info("%s: register tcpc notifer fail\n", __func__);
+		pr_err("%s: register tcpc notifer fail\n", __func__);
 		ret = -EINVAL;
 		goto err_get_tcpc_dev;
 	}

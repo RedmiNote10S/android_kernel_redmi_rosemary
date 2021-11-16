@@ -783,7 +783,7 @@ struct adapter_device *adapter_device_register(const char *name,
 	int rc;
 	char *adapter_name = NULL;
 
-	pr_notice("%s: name=%s\n", __func__, name);
+	pr_debug("%s: name=%s\n", __func__, name);
 	adapter_dev = kzalloc(sizeof(*adapter_dev), GFP_KERNEL);
 	if (!adapter_dev)
 		return ERR_PTR(-ENOMEM);
@@ -868,7 +868,7 @@ static int __init adapter_class_init(void)
 {
 	adapter_class = class_create(THIS_MODULE, "Charging_Adapter");
 	if (IS_ERR(adapter_class)) {
-		pr_notice("Unable to create Charging Adapter class; errno = %ld\n",
+		pr_err("Unable to create Charging Adapter class; errno = %ld\n",
 			PTR_ERR(adapter_class));
 		return PTR_ERR(adapter_class);
 	}
