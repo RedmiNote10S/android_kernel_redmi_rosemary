@@ -1,16 +1,41 @@
-#! /usr/bin/python2
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2016 MediaTek Inc.
+# Copyright Statement:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# This software/firmware and related documentation ("MediaTek Software") are
+# protected under relevant copyright laws. The information contained herein is
+# confidential and proprietary to MediaTek Inc. and/or its licensors. Without
+# the prior written permission of MediaTek inc. and/or its licensors, any
+# reproduction, modification, use or disclosure of MediaTek Software, and
+# information contained herein, in whole or in part, shall be strictly
+# prohibited.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See http://www.gnu.org/licenses/gpl-2.0.html for more details.	
+# MediaTek Inc. (C) 2019. All rights reserved.
+#
+# BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
+# THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
+# RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO RECEIVER
+# ON AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL
+# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+# NONINFRINGEMENT. NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH
+# RESPECT TO THE SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY,
+# INCORPORATED IN, OR SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES
+# TO LOOK ONLY TO SUCH THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO.
+# RECEIVER EXPRESSLY ACKNOWLEDGES THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO
+# OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES CONTAINED IN MEDIATEK
+# SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE
+# RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
+# STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S
+# ENTIRE AND CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE
+# RELEASED HEREUNDER WILL BE, AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE
+# MEDIATEK SOFTWARE AT ISSUE, OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE
+# CHARGE PAID BY RECEIVER TO MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
+#
+# The following software/firmware and/or related documentation ("MediaTek
+# Software") have been modified by MediaTek Inc. All revisions are subject to
+# any receiver's applicable license agreements with MediaTek Inc.	
 
 import os, sys
 import getopt
@@ -24,11 +49,11 @@ sys.path.append('.')
 sys.path.append('..')
 
 from obj.ChipObj import ChipObj
-from obj.ChipObj import Everest
-from obj.ChipObj import Olympus
+from obj.ChipObj import MT6797
+from obj.ChipObj import MT6757
 from obj.ChipObj import MT6757_P25
-from obj.ChipObj import Rushmore
-from obj.ChipObj import Whitney
+from obj.ChipObj import MT6570
+from obj.ChipObj import MT6799
 from obj.ChipObj import MT6759
 from obj.ChipObj import MT6763
 from obj.ChipObj import MT6750S
@@ -38,12 +63,16 @@ from obj.ChipObj import MT8695
 from obj.ChipObj import MT6771
 from obj.ChipObj import MT6775
 from obj.ChipObj import MT6779
+from obj.ChipObj import MT6768
+from obj.ChipObj import MT6785
+from obj.ChipObj import MT6885
+from obj.ChipObj import MT6853
 
 from utility.util import LogLevel
 from utility.util import log
 
 def usage():
-    print '''
+    print('''
 usage: DrvGen [dws_path] [file_path] [log_path] [paras]...
 
 options and arguments:
@@ -52,7 +81,7 @@ dws_path    :    dws file path
 file_path   :    where you want to put generated files
 log_path    :    where to store the log files
 paras        :    parameter for generate wanted file
-'''
+''')
 
 def is_oldDws(path, gen_spec):
     if not os.path.exists(path):
@@ -61,13 +90,19 @@ def is_oldDws(path, gen_spec):
 
     try:
         root = xml.dom.minidom.parse(dws_path)
-    except Exception, e:
+    except Exception:
         log(LogLevel.warn, '%s is not xml format, try to use old DCT!' %(dws_path))
         if len(gen_spec) == 0:
             log(LogLevel.warn, 'Please use old DCT UI to gen all files!')
             return True
-        old_dct = os.path.join(sys.path[0], 'old_dct', 'DrvGen')
+        #old_dct = os.path.join(sys.path[0], 'old_dct', 'DrvGen')
+        drvgen_path = sys.argv[0]
+        parent_path = os.path.abspath(os.path.dirname(drvgen_path) + os.path.sep + "..")
+        old_dct = os.path.join(parent_path, 'old_dct', 'DrvGen')
+        log(LogLevel.info, "old dct path: %s" % (old_dct))
         cmd = old_dct + ' ' + dws_path + ' ' + gen_path + ' ' + log_path + ' ' + gen_spec[0]
+        log(LogLevel.info, "old dct cmd: %s" % (cmd))
+
         if 0 == subprocess.call(cmd, shell=True):
             return True
         else:
@@ -140,38 +175,50 @@ if __name__ == '__main__':
     chipId = ChipObj.get_chipId(dws_path)
     log(LogLevel.info, 'chip id: %s' %(chipId))
     chipObj = None
-    if cmp(chipId, 'MT6797') == 0:
-        chipObj = Everest(dws_path, gen_path)
-    elif cmp(chipId, 'MT6757') == 0:
-        chipObj = Olympus(dws_path, gen_path)
-    elif cmp(chipId, 'MT6757-P25') == 0:
+    if chipId == 'MT6797':
+        chipObj = MT6797(dws_path, gen_path)
+    elif chipId == 'MT6757':
+        chipObj = MT6757(dws_path, gen_path)
+    elif chipId == 'MT6757-P25':
         chipObj = MT6757_P25(dws_path, gen_path)
-    elif cmp(chipId, 'KIBOPLUS') == 0:
-        chipObj = MT6757_P25(dws_path, gen_path)
-    elif cmp(chipId, 'MT6570') == 0:
-        chipObj = Rushmore(dws_path, gen_path)
-    elif cmp(chipId, 'MT6799') == 0:
-        chipObj = Whitney(dws_path, gen_path)
-    elif cmp(chipId, 'MT6763') == 0:
+    elif chipId == 'MT6570':
+        chipObj = MT6570(dws_path, gen_path)
+    elif chipId == 'MT6799':
+        chipObj = MT6799(dws_path, gen_path)
+    elif chipId == 'MT6763':
         chipObj = MT6763(dws_path, gen_path)
-    elif cmp(chipId, 'MT6759') == 0:
+    elif chipId == 'MT6759':
         chipObj = MT6759(dws_path, gen_path)
-    elif cmp(chipId, 'MT6750S') == 0:
+    elif chipId == 'MT6750S':
         chipObj = MT6750S(dws_path, gen_path)
-    elif cmp(chipId, 'MT6758') == 0:
+    elif chipId == 'MT6758':
         chipObj = MT6758(dws_path, gen_path)
-    elif cmp(chipId, 'MT6739') == 0:
+    elif chipId == 'MT6739':
         chipObj = MT6739(dws_path, gen_path)
-    elif cmp(chipId, 'MT8695') == 0:
+    elif chipId == 'MT8695' or \
+         chipId == 'MT8168' or \
+         chipId == 'MT8696':
         chipObj = MT8695(dws_path, gen_path)
-    elif cmp(chipId, 'MT6771') == 0 or \
-         cmp(chipId, 'MT6775') == 0 or \
-         cmp(chipId, 'MT6765') == 0 or \
-         cmp(chipId, 'MT3967') == 0 or \
-         cmp(chipId, 'MT6761') == 0:
+    elif chipId == 'MT6771' or \
+         chipId == 'MT6775' or \
+         chipId == 'MT6765' or \
+         chipId == 'MT3967' or \
+         chipId == 'MT6761':
         chipObj = MT6771(dws_path, gen_path)
-    elif cmp(chipId, 'MT6779') == 0:
+    elif chipId == 'MT6779':
         chipObj = MT6779(dws_path, gen_path)
+    elif chipId == 'MT6768':
+        chipObj = MT6768(dws_path, gen_path)
+    elif chipId == 'MT6785':
+        chipObj = MT6785(dws_path, gen_path)
+    elif chipId == 'MT6885' or \
+         chipId == 'MT6873' or \
+         chipId == 'MT6893':
+        chipObj = MT6885(dws_path, gen_path)
+    elif chipId == 'MT6853' or \
+         chipId == 'MT6880' or \
+         chipId == 'MT6833':
+        chipObj = MT6853(dws_path, gen_path)
     else:
         chipObj = ChipObj(dws_path, gen_path)
 
