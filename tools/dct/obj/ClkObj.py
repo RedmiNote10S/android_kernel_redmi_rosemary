@@ -1,24 +1,50 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2016 MediaTek Inc.
+# Copyright Statement:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# This software/firmware and related documentation ("MediaTek Software") are
+# protected under relevant copyright laws. The information contained herein is
+# confidential and proprietary to MediaTek Inc. and/or its licensors. Without
+# the prior written permission of MediaTek inc. and/or its licensors, any
+# reproduction, modification, use or disclosure of MediaTek Software, and
+# information contained herein, in whole or in part, shall be strictly
+# prohibited.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+# MediaTek Inc. (C) 2019. All rights reserved.
+#
+# BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
+# THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
+# RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO RECEIVER
+# ON AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL
+# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+# NONINFRINGEMENT. NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH
+# RESPECT TO THE SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY,
+# INCORPORATED IN, OR SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES
+# TO LOOK ONLY TO SUCH THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO.
+# RECEIVER EXPRESSLY ACKNOWLEDGES THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO
+# OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES CONTAINED IN MEDIATEK
+# SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE
+# RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
+# STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S
+# ENTIRE AND CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE
+# RELEASED HEREUNDER WILL BE, AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE
+# MEDIATEK SOFTWARE AT ISSUE, OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE
+# CHARGE PAID BY RECEIVER TO MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
+#
+# The following software/firmware and/or related documentation ("MediaTek
+# Software") have been modified by MediaTek Inc. All revisions are subject to
+# any receiver's applicable license agreements with MediaTek Inc.
 
+import os
 import re
 import string
-import ConfigParser
+import configparser
 
 import xml.dom.minidom
 
-from ModuleObj import ModuleObj
+from obj.ModuleObj import ModuleObj
 from data.ClkData import ClkData
 from data.ClkData import OldClkData
 from data.ClkData import NewClkData
@@ -47,7 +73,7 @@ class ClkObj(ModuleObj):
                 key = re.findall(r'\D+', node.nodeName)[0].upper() + self._suffix + '%s' %(re.findall(r'\d+', node.nodeName)[0])
 
                 if key not in ModuleObj.get_data(self):
-	                continue;
+                    continue
 
                 data = ModuleObj.get_data(self)[key]
 
@@ -62,17 +88,17 @@ class ClkObj(ModuleObj):
         return True
 
     def get_cfgInfo(self):
-        cp = ConfigParser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser(allow_no_value=True, strict=False)
         cp.read(ModuleObj.get_figPath())
 
-        count = string.atoi(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
+        count = int(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
         self.__count = count
 
         ops = cp.options('CLK_BUF')
         for op in ops:
             if op == 'clk_buf_count':
-                self.__count = string.atoi(cp.get('CLK_BUF', op))
-                ClkData._count = string.atoi(cp.get('CLK_BUF', op))
+                self.__count = int(cp.get('CLK_BUF', op))
+                ClkData._count = int(cp.get('CLK_BUF', op))
                 continue
 
             value = cp.get('CLK_BUF', op)
@@ -80,8 +106,8 @@ class ClkObj(ModuleObj):
 
             data = OldClkData()
             data.set_curList(var_list[2:])
-            data.set_defVarName(string.atoi(var_list[0]))
-            data.set_defCurrent(string.atoi(var_list[1]))
+            data.set_defVarName(int(var_list[0]))
+            data.set_defCurrent(int(var_list[1]))
 
             key = op[16:].upper()
             ModuleObj.set_data(self, key, data)
@@ -119,7 +145,7 @@ class ClkObj(ModuleObj):
         for key in sorted_key(ModuleObj.get_data(self).keys()):
             value = ModuleObj.get_data(self)[key]
             idx = value.get_curList().index(value.get_current())
-            if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+            if value.get_curList()[0] == DEFAULT_AUTOK:
                 idx -= 1
 
             if idx >= 0:
@@ -154,7 +180,7 @@ class ClkObj(ModuleObj):
                 continue
             value = ModuleObj.get_data(self)[key]
             idx = value.get_curList().index(value.get_current())
-            if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+            if value.get_curList()[0] == DEFAULT_AUTOK:
                 idx -= 1
             if idx < 0:
                 gen_str += '''(%d) ''' %(-1)
@@ -170,7 +196,7 @@ class ClkObj(ModuleObj):
         return gen_str
 
 
-class ClkObj_Everest(ClkObj):
+class ClkObj_MT6797(ClkObj):
     def __init__(self):
         ClkObj.__init__(self)
         self.__rf = 'RF'
@@ -258,7 +284,7 @@ class ClkObj_Everest(ClkObj):
             value = ModuleObj.get_data(self)[key]
             if key.find(self.__rf) != -1:
                 idx = value.get_curList().index(value.get_current())
-                if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+                if value.get_curList()[0] == DEFAULT_AUTOK:
                     idx -= 1
                 gen_str += '''%d ''' %(idx)
 
@@ -270,7 +296,7 @@ class ClkObj_Everest(ClkObj):
 
         return gen_str
 
-class ClkObj_Olympus(ClkObj_Everest):
+class ClkObj_MT6757(ClkObj_MT6797):
 
     def __init__(self):
         ClkObj_Everest.__init__(self)
@@ -321,7 +347,7 @@ class ClkObj_Olympus(ClkObj_Everest):
                 continue
             value = ModuleObj.get_data(self)[key]
             idx = value.get_curList().index(value.get_current())
-            if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+            if value.get_curList()[0] == DEFAULT_AUTOK:
                 idx -= 1
 
             if idx >= 0:
@@ -337,7 +363,7 @@ class ClkObj_Olympus(ClkObj_Everest):
                 continue
             value = ModuleObj.get_data(self)[key]
             idx = value.get_curList().index(value.get_current())
-            if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+            if value.get_curList()[0] == DEFAULT_AUTOK:
                 idx -= 1
 
             if idx >= 0:
@@ -349,7 +375,7 @@ class ClkObj_Olympus(ClkObj_Everest):
 
         return gen_str
 
-class ClkObj_Rushmore(ClkObj):
+class ClkObj_MT6570(ClkObj):
 
     def __init__(self):
         ClkObj.__init__(self)
@@ -358,10 +384,10 @@ class ClkObj_Rushmore(ClkObj):
         ClkObj.parse(self, node)
 
     def get_cfgInfo(self):
-        cp = ConfigParser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser(allow_no_value=True, strict=False)
         cp.read(ModuleObj.get_figPath())
 
-        count = string.atoi(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
+        count = int(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
         self.__count = count
 
     def read(self, node):
@@ -416,7 +442,7 @@ class ClkObj_Rushmore(ClkObj):
                 continue
             value = ModuleObj.get_data(self)[key]
             idx = value.get_curList().index(value.get_current())
-            if cmp(value.get_curList()[0], DEFAULT_AUTOK) == 0:
+            if value.get_curList()[0] == DEFAULT_AUTOK:
                 idx -= 1
 
             if idx >= 0:
@@ -483,7 +509,7 @@ class ClkObj_MT6779(ClkObj):
         return True
 
     def get_cfgInfo(self):
-        cp = ConfigParser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser(allow_no_value=True, strict=False)
         cp.read(ModuleObj.get_figPath())
 
         max_count = self.get_max_count(cp)
@@ -499,19 +525,19 @@ class ClkObj_MT6779(ClkObj):
             var_list = value.split(r'/')
 
             data = NewClkData()
-            data.set_defVarName(string.atoi(var_list[0]))
+            data.set_defVarName(int(var_list[0]))
 
             buf_output_list = var_list[1].split(r":")
             # only -1 means no data
             if len(buf_output_list) > 1:
                 data.cur_buf_output_list = buf_output_list[1:]
-                data.set_def_buf_output(string.atoi(buf_output_list[0]))
+                data.set_def_buf_output(int(buf_output_list[0]))
 
             driving_control_list = var_list[2].split(r":")
             # only -1 means no data
             if len(driving_control_list) > 1:
                 data.cur_driving_control_list = driving_control_list[1:]
-                data.set_def_driving_control(string.atoi(driving_control_list[0]))
+                data.set_def_driving_control(int(driving_control_list[0]))
 
             key = op[16:].upper()
             ModuleObj.set_data(self, key, data)

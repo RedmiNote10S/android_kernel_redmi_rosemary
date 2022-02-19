@@ -1,29 +1,54 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2016 MediaTek Inc.
+# Copyright Statement:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# This software/firmware and related documentation ("MediaTek Software") are
+# protected under relevant copyright laws. The information contained herein is
+# confidential and proprietary to MediaTek Inc. and/or its licensors. Without
+# the prior written permission of MediaTek inc. and/or its licensors, any
+# reproduction, modification, use or disclosure of MediaTek Software, and
+# information contained herein, in whole or in part, shall be strictly
+# prohibited.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+# MediaTek Inc. (C) 2019. All rights reserved.
+#
+# BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
+# THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
+# RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO RECEIVER
+# ON AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL
+# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+# NONINFRINGEMENT. NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH
+# RESPECT TO THE SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY,
+# INCORPORATED IN, OR SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES
+# TO LOOK ONLY TO SUCH THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO.
+# RECEIVER EXPRESSLY ACKNOWLEDGES THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO
+# OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES CONTAINED IN MEDIATEK
+# SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE
+# RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
+# STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S
+# ENTIRE AND CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE
+# RELEASED HEREUNDER WILL BE, AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE
+# MEDIATEK SOFTWARE AT ISSUE, OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE
+# CHARGE PAID BY RECEIVER TO MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
+#
+# The following software/firmware and/or related documentation ("MediaTek
+# Software") have been modified by MediaTek Inc. All revisions are subject to
+# any receiver's applicable license agreements with MediaTek Inc.
 
 import re
 import os
 import sys
 import string
-import ConfigParser
+import configparser
 import xml.dom.minidom
 
 
 from data.GpioData import GpioData
 from data.EintData import EintData
-from ModuleObj import ModuleObj
-import ChipObj
+from obj.ModuleObj import ModuleObj
+import obj.ChipObj
 from utility.util import compare
 from utility.util import sorted_key
 from utility.util import log
@@ -41,7 +66,7 @@ class GpioObj(ModuleObj):
         self.__gpio_column_enable = True
 
     def get_cfgInfo(self):
-        cp = ConfigParser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser(allow_no_value=True, strict=False)
         cp.read(ModuleObj.get_cmpPath())
 
         # get GPIO_FREQ section
@@ -71,7 +96,7 @@ class GpioObj(ModuleObj):
             GpioData._modeMap[op] = temp
 
             data = GpioData()
-            data.set_smtNum(string.atoi(list[len(list)-1]))
+            data.set_smtNum(int(list[len(list)-1]))
             ModuleObj.set_data(self, op.lower(), data)
 
         if cp.has_option('Chip Type', 'GPIO_COLUMN_ENABLE'):
@@ -83,8 +108,8 @@ class GpioObj(ModuleObj):
         nodes = node.childNodes
         for node in nodes:
             if node.nodeType == xml.dom.Node.ELEMENT_NODE:
-                if cmp(node.nodeName, 'count') == 0:
-                    GpioData._count = string.atoi(node.childNodes[0].nodeValue)
+                if node.nodeName == 'count':
+                    GpioData._count = int(node.childNodes[0].nodeValue)
                     continue
 
                 eintNode = node.getElementsByTagName('eint_mode')
@@ -103,19 +128,19 @@ class GpioObj(ModuleObj):
                 iesNode = node.getElementsByTagName('ies')
                 drvCurNode = node.getElementsByTagName('drv_cur')
 
-                num = string.atoi(node.nodeName[4:])
+                num = int(node.nodeName[4:])
                 if num >= len(ModuleObj.get_data(self)):
                     break
                 data = ModuleObj.get_data(self)[node.nodeName]
 
                 if len(eintNode):
                     flag = False
-                    if cmp(eintNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if eintNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_eintMode(flag)
 
                 if len(defmNode):
-                    data.set_defMode(string.atoi(defmNode[0].childNodes[0].nodeValue))
+                    data.set_defMode(int(defmNode[0].childNodes[0].nodeValue))
 
                 if len(modsNode) != 0  and len(modsNode[0].childNodes) != 0:
                     str = modsNode[0].childNodes[0].nodeValue
@@ -126,13 +151,13 @@ class GpioObj(ModuleObj):
 
                 if len(inpeNode):
                     flag = False
-                    if cmp(inpeNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if inpeNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_inpullEn(flag)
 
                 if len(inpsNode):
                     flag = False
-                    if cmp(inpsNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if inpsNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_inpullSelHigh(flag)
 
@@ -141,19 +166,19 @@ class GpioObj(ModuleObj):
 
                 if len(diriNode) != 0  and len(diriNode[0].childNodes) != 0:
                     flag = False
-                    if cmp(diriNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if diriNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_inEn(flag)
 
                 if len(diroNode) != 0  and len(diroNode[0].childNodes) != 0:
                     flag = False
-                    if cmp(diroNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if diroNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_outEn(flag)
 
                 if len(outhNode):
                     flag = False
-                    if cmp(outhNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if outhNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_outHigh(flag)
 
@@ -169,13 +194,13 @@ class GpioObj(ModuleObj):
 
                 if len(smtNode):
                     flag = False
-                    if cmp(smtNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if smtNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_smtEn(flag)
 
                 if len(iesNode):
                     flag = False
-                    if cmp(iesNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if iesNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_iesEn(flag)
 
@@ -416,7 +441,7 @@ class GpioObj(ModuleObj):
                                     mode_name = mode_name.split('//')[1]
 
                             if pat.match(mode_name):
-                                if cmp(item, 'eint') == 0 and ((value.get_eintMode() or mode_name.find('MD_EINT') != -1)):
+                                if item == 'eint' and ((value.get_eintMode() or mode_name.find('MD_EINT') != -1)):
                                     continue
 
                                 gen_str += '''#define %s%s\t\tGPIO_MODE_0%d\n''' % (varName.upper(), GpioData._specMap[item].upper(), i)
@@ -459,7 +484,7 @@ class GpioObj(ModuleObj):
                         regExp = '[_A-Z0-9:]*%s[_A-Z0-9:]*' %(item.upper())
                         pat = re.compile(regExp)
                         if pat.match(mode_name):
-                            if cmp(item, 'eint') == 0 and ((value.get_eintMode() or mode_name.find('MD_EINT') != -1)):
+                            if item == 'eint' and ((value.get_eintMode() or mode_name.find('MD_EINT') != -1)):
                                 continue
                             gen_str += '''#define %s%s\t\tGPIO_MODE_0%d\n''' % (varName.upper(), GpioData._specMap[item].upper(), value.get_defMode())
                             bmatch = True
@@ -624,12 +649,12 @@ class GpioObj(ModuleObj):
     def fill_init_default_dtsiFile(self):
         return ''
 
-class GpioObj_whitney(GpioObj):
+class GpioObj_MT6799(GpioObj):
     def __init__(self):
         GpioObj.__init__(self)
 
     def parse(self, node):
-        log(LogLevel.info, 'GpioObj_whitney parse')
+        log(LogLevel.info, 'GpioObj_MT6799 parse')
         GpioObj.parse(self, node)
 
     def gen_files(self):
@@ -676,8 +701,8 @@ class GpioObj_MT6739(GpioObj_MT6759):
         GpioObj_MT6759.__init__(self)
 
     def get_eint_index(self, gpio_index):
-        if string.atoi(gpio_index) in GpioData._map_table.keys():
-            return GpioData._map_table[string.atoi(gpio_index)]
+        if int(gpio_index) in GpioData._map_table.keys():
+            return GpioData._map_table[int(gpio_index)]
         return -1
 
     def fill_pinctrl_hFile(self):
@@ -727,7 +752,7 @@ class GpioObj_MT6771(GpioObj_MT6739):
             if "GPIO_INIT_NO_COVER" in value.get_varNames():
                 continue
 
-            num = string.atoi(key[4:])
+            num = int(key[4:])
             defMode = value.get_defMode()
             dout = 1 if value.get_outHigh() else 0
             pullEn = 1 if value.get_inPullEn() else 0
@@ -749,7 +774,7 @@ class GpioObj_MT6763(GpioObj_MT6759):
         for key in sorted_key(ModuleObj.get_data(self).keys()):
             value = ModuleObj.get_data(self)[key]
 
-            num = string.atoi(key[4:])
+            num = int(key[4:])
             defMode = value.get_defMode()
             dout = 1 if value.get_outHigh() else 0
             pullEn = 1 if value.get_inPullEn() else 0
@@ -762,3 +787,70 @@ class GpioObj_MT6763(GpioObj_MT6759):
         gen_str += ';'
         gen_str += '''\n};\n'''
         return gen_str
+
+class GpioObj_MT6768(GpioObj_MT6771):
+    def fill_pinctrl_hFile(self):
+        gen_str = '''#include "pinctrl-paris.h"\n\n'''
+        gen_str += '''static const struct mtk_pin_desc mtk_pins_%s[] = {\n''' % (ModuleObj.get_chipId().lower())
+
+        # sorted_list = sorted(ModuleObj.get_data(self).keys(), key = compare)
+        for key in sorted_key(ModuleObj.get_data(self).keys()):
+            # for key in sorted_list:
+            gen_str += '''\tMTK_PIN(\n'''
+            gen_str += '''\t\t%s, \"%s\",\n''' % (key[4:], key.upper())
+            eint_index = self.get_eint_index(key[4:])
+            if eint_index != -1:
+                gen_str += '''\t\tMTK_EINT_FUNCTION(%d, %d),\n''' % (0, eint_index)
+            else:
+                gen_str += '''\t\tMTK_EINT_FUNCTION(NO_EINT_SUPPORT, NO_EINT_SUPPORT),\n'''
+            gen_str += '''\t\tDRV_GRP4'''
+            for i in range(0, GpioData._modNum):
+                mode_name = GpioData.get_modeName(key, i)
+
+                if mode_name != '':
+                    lst = []
+                    if mode_name.find('//') != -1:
+                        lst = mode_name.split('//')
+                    else:
+                        lst.append(mode_name)
+                    for j in range(0, len(lst)):
+                        gen_str += ''',\n\t\tMTK_FUNCTION(%d, "%s")''' % (i + j * 8, lst[j])
+            gen_str += '''\n\t),\n'''
+
+        gen_str += '''};\n'''
+
+        return gen_str
+
+class GpioObj_MT6785(GpioObj_MT6771):
+    # change feature from light for pin control
+    def fill_pinctrl_hFile(self):
+        gen_str = '''#include "pinctrl-paris.h"\n\n'''
+        gen_str += '''static const struct mtk_pin_desc mtk_pins_%s[] = {\n''' % (ModuleObj.get_chipId().lower())
+
+        # sorted_list = sorted(ModuleObj.get_data(self).keys(), key = compare)
+        for key in sorted_key(ModuleObj.get_data(self).keys()):
+            # for key in sorted_list:
+            gen_str += '''\tMTK_PIN(\n'''
+            gen_str += '''\t\t%s, \"%s\",\n''' % (key[4:], key.upper())
+            eint_index = self.get_eint_index(key[4:])
+            if eint_index != -1:
+                gen_str += '''\t\tMTK_EINT_FUNCTION(%d, %d),\n''' % (0, eint_index)
+            else:
+                gen_str += '''\t\tMTK_EINT_FUNCTION(NO_EINT_SUPPORT, NO_EINT_SUPPORT),\n'''
+            gen_str += '''\t\tDRV_GRP4'''
+            for i in range(0, GpioData._modNum):
+                mode_name = GpioData.get_modeName(key, i)
+                smt_number = ModuleObj.get_data(self)[key].get_smtNum()
+
+                if mode_name != '':
+                    if smt_number != -1:
+                        gen_str += ''',\n\t\tMTK_FUNCTION(%d, "%s")''' % (i, mode_name)
+                    else:
+                        gen_str += ''',\n\t\tMTK_FUNCTION(%d, NULL)''' % (i)
+
+            gen_str += '''\n\t),\n'''
+
+        gen_str += '''};\n'''
+
+        return gen_str
+
