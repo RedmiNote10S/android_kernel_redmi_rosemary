@@ -30,21 +30,6 @@
 #include "internal.h"
 
 /*
- * New pipe buffers will be restricted to this size while the user is exceeding
- * their pipe buffer quota. The general pipe use case needs at least two
- * buffers: one for data yet to be read, and one for new data. If this is less
- * than two, then a write to a non-empty pipe may block even if the pipe is not
- * full. This can occur with GNU make jobserver or similar uses of pipes as
- * semaphores: multiple processes may be waiting to write tokens back to the
- * pipe before reading tokens: https://lore.kernel.org/lkml/1628086770.5rn8p04n6j.none@localhost/.
- *
- * Users can reduce their pipe buffers with F_SETPIPE_SZ below this at their
- * own risk, namely: pipe writes to non-full pipes may block until the pipe is
- * emptied.
- */
-#define PIPE_MIN_DEF_BUFFERS 2
-
-/*
  * The max size that a non-root user is allowed to grow the pipe. Can
  * be set by root in /proc/sys/fs/pipe-max-size
  */
@@ -292,6 +277,10 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	do_wakeup = 0;
 	ret = 0;
 	__pipe_lock(pipe);
+
+	if (strcmp(current->comm, "dnsmasq") == 0)
+		pr_info("[mtk_net][%s]\n", __func__);
+
 	for (;;) {
 		int bufs = pipe->nrbufs;
 		if (bufs) {
@@ -356,13 +345,19 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			}
 		}
 		if (signal_pending(current)) {
+			if (strcmp(current->comm, "dnsmasq") == 0)
+				pr_info("[mtk_net][%d][%s]signal_pending, ret=%zd\n",
+					__LINE__, __func__,  ret);
 			if (!ret)
 				ret = -ERESTARTSYS;
 			break;
 		}
 		if (do_wakeup) {
 			wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
- 			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+			if (strcmp(current->comm, "dnsmasq") == 0)
+				pr_info("[mtk_net][%d][%s]do_wakeup\n",
+					__LINE__, __func__);
 		}
 		pipe_wait(pipe);
 	}
@@ -372,6 +367,9 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	if (do_wakeup) {
 		wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+		if (strcmp(current->comm, "dnsmasq") == 0)
+			pr_info("[mtk_net][%d][%s] do_wakeup\n",
+				__LINE__, __func__);
 	}
 	if (ret > 0)
 		file_accessed(filp);
@@ -404,6 +402,9 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		ret = -EPIPE;
 		goto out;
 	}
+
+	if (strcmp(current->comm, "dnsmasq") == 0)
+		pr_info("[mtk_net][%d][%s]\n", __LINE__, __func__);
 
 	/* We try to merge small writes */
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
@@ -492,6 +493,9 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			break;
 		}
 		if (signal_pending(current)) {
+			if (strcmp(current->comm, "dnsmasq") == 0)
+				pr_info("[mtk_net][%d][%s]signal_pending, ret=%zd\n",
+					__LINE__, __func__, ret);
 			if (!ret)
 				ret = -ERESTARTSYS;
 			break;
@@ -500,6 +504,9 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
+			if (strcmp(current->comm, "dnsmasq") == 0)
+				pr_info("[mtk_net][%d][%s]do_wakeup\n",
+					__LINE__, __func__);
 		}
 		pipe->waiting_writers++;
 		pipe_wait(pipe);
@@ -562,6 +569,12 @@ pipe_poll(struct file *filp, poll_table *wait)
 			mask |= POLLHUP;
 	}
 
+	if (strcmp(current->comm, "dnsmasq") == 0) {
+		if (mask)
+			pr_info("[mtk_net][%d][%s]read mask : 0x%04x\n",
+				__LINE__, __func__, mask);
+	}
+
 	if (filp->f_mode & FMODE_WRITE) {
 		mask |= (nrbufs < pipe->buffers) ? POLLOUT | POLLWRNORM : 0;
 		/*
@@ -570,8 +583,20 @@ pipe_poll(struct file *filp, poll_table *wait)
 		 */
 		if (!pipe->readers)
 			mask |= POLLERR;
+
+		if (strcmp(current->comm, "dnsmasq") == 0) {
+			if (mask)
+				pr_info("[mtk_net][%d][%s]FMODE_WRITE read mask : 0x%04x\n",
+					__LINE__, __func__, mask);
+		}
 	}
 
+	if (((filp->f_mode & FMODE_READ) == 0) &&
+				((filp->f_mode & FMODE_WRITE) == 0)) {
+		if (strcmp(current->comm, "dnsmasq") == 0)
+			pr_info("[mtk_net][%d][%s]mask NULL\n",
+				__LINE__, __func__);
+	}
 	return mask;
 }
 
@@ -605,6 +630,8 @@ pipe_release(struct inode *inode, struct file *file)
 		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLERR | POLLHUP);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+		if (strcmp(current->comm, "dnsmasq") == 0)
+			pr_info("[mtk_net][%d][%s]\n", __LINE__, __func__);
 	}
 	__pipe_unlock(pipe);
 
@@ -669,8 +696,8 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	user_bufs = account_pipe_buffers(user, 0, pipe_bufs);
 
 	if (too_many_pipe_buffers_soft(user_bufs) && is_unprivileged_user()) {
-		user_bufs = account_pipe_buffers(user, pipe_bufs, PIPE_MIN_DEF_BUFFERS);
-		pipe_bufs = PIPE_MIN_DEF_BUFFERS;
+		user_bufs = account_pipe_buffers(user, pipe_bufs, 1);
+		pipe_bufs = 1;
 	}
 
 	if (too_many_pipe_buffers_hard(user_bufs) && is_unprivileged_user())
@@ -912,6 +939,9 @@ static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 static void wake_up_partner(struct pipe_inode_info *pipe)
 {
 	wake_up_interruptible(&pipe->wait);
+
+	if (strcmp(current->comm, "dnsmasq") == 0)
+		pr_info("[mtk_net][%d][%s]pipe->wait\n", __LINE__, __func__);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)
@@ -1024,12 +1054,18 @@ err_rd:
 	if (!--pipe->readers)
 		wake_up_interruptible(&pipe->wait);
 	ret = -ERESTARTSYS;
+	if (strcmp(current->comm, "dnsmasq") == 0)
+		pr_info("[mtk_net][%d][%s]err_rd: pipe->wait\n",
+			__LINE__, __func__);
 	goto err;
 
 err_wr:
 	if (!--pipe->writers)
 		wake_up_interruptible(&pipe->wait);
 	ret = -ERESTARTSYS;
+	if (strcmp(current->comm, "dnsmasq") == 0)
+		pr_info("[mtk_net][%d][%s]err_wr: pipe->wait\n",
+			__LINE__, __func__);
 	goto err;
 
 err:

@@ -50,6 +50,7 @@
 
 #include <linux/uaccess.h>
 #include <asm/page.h>
+#include <mt-plat/mtk_io_boost.h>
 
 #ifdef CONFIG_JBD2_DEBUG
 ushort jbd2_journal_enable_debug __read_mostly;
@@ -207,6 +208,9 @@ static int kjournald2(void *arg)
 	/* Record that the journal thread is running */
 	journal->j_task = current;
 	wake_up(&journal->j_wait_done_commit);
+#if defined(CONFIG_MTK_IO_BOOST)
+	mtk_iobst_register_tid(current->pid);
+#endif
 
 	/*
 	 * Make sure that no allocations from this kernel thread will ever
@@ -1356,10 +1360,8 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
 	int ret;
 
 	/* Buffer got discarded which means block device got invalidated */
-	if (!buffer_mapped(bh)) {
-		unlock_buffer(bh);
+	if (!buffer_mapped(bh))
 		return -EIO;
-	}
 
 	trace_jbd2_write_superblock(journal, write_flags);
 	if (!(journal->j_flags & JBD2_BARRIER))

@@ -1100,7 +1100,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	int del_nr = 0;
 	int del_slot = 0;
 	int recow;
-	int ret = 0;
+	int ret;
 	u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
@@ -1320,7 +1320,7 @@ again:
 	}
 out:
 	btrfs_free_path(path);
-	return ret;
+	return 0;
 }
 
 /*
