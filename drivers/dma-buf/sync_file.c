@@ -220,8 +220,8 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 					 struct sync_file *b)
 {
 	struct sync_file *sync_file;
-	struct dma_fence **fences = NULL, **nfences, **a_fences, **b_fences;
-	int i = 0, i_a, i_b, num_fences, a_num_fences, b_num_fences;
+	struct dma_fence **fences, **nfences, **a_fences, **b_fences;
+	int i, i_a, i_b, num_fences, a_num_fences, b_num_fences;
 
 	sync_file = sync_file_alloc();
 	if (!sync_file)
@@ -245,7 +245,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	 * If a sync_file can only be created with sync_file_merge
 	 * and sync_file_create, this is a reasonable assumption.
 	 */
-	for (i_a = i_b = 0; i_a < a_num_fences && i_b < b_num_fences; ) {
+	for (i = i_a = i_b = 0; i_a < a_num_fences && i_b < b_num_fences; ) {
 		struct dma_fence *pt_a = a_fences[i_a];
 		struct dma_fence *pt_b = b_fences[i_b];
 
@@ -274,8 +274,29 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	for (; i_b < b_num_fences; i_b++)
 		add_fence(fences, &i, b_fences[i_b]);
 
-	if (i == 0)
-		fences[i++] = dma_fence_get(a_fences[0]);
+	/* If all the sync pts were signaled, then adding the sync_pt who
+	 * was the last signaled to the fence.
+	 */
+	if (i == 0) {
+		struct dma_fence *last_signaled_sync_pt = a_fences[0];
+		int iter;
+
+		for (iter = 1; iter < a_num_fences; iter++) {
+			if (ktime_compare(last_signaled_sync_pt->timestamp,
+				a_fences[iter]->timestamp) < 0) {
+				last_signaled_sync_pt = a_fences[iter];
+			}
+		}
+
+		for (iter = 0; iter < b_num_fences; iter++) {
+			if (ktime_compare(last_signaled_sync_pt->timestamp,
+				b_fences[iter]->timestamp) < 0) {
+				last_signaled_sync_pt = b_fences[iter];
+			}
+		}
+
+		fences[i++] = dma_fence_get(last_signaled_sync_pt);
+	}
 
 	if (num_fences > i) {
 		nfences = krealloc(fences, i * sizeof(*fences),
@@ -286,16 +307,15 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 		fences = nfences;
 	}
 
-	if (sync_file_set_fence(sync_file, fences, i) < 0)
+	if (sync_file_set_fence(sync_file, fences, i) < 0) {
+		kfree(fences);
 		goto err;
+	}
 
 	strlcpy(sync_file->user_name, name, sizeof(sync_file->user_name));
 	return sync_file;
 
 err:
-	while (i)
-		dma_fence_put(fences[--i]);
-	kfree(fences);
 	fput(sync_file->file);
 	return NULL;
 

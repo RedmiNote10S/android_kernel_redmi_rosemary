@@ -275,11 +275,16 @@ static inline int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	if (ring->num_trbs_free < num_trbs)
 		return 0;
 
-	if (ring->type != TYPE_COMMAND && ring->type != TYPE_EVENT) {
-		num_trbs_in_deq_seg = ring->dequeue - ring->deq_seg->trbs;
-		if (ring->num_trbs_free < num_trbs + num_trbs_in_deq_seg)
-			return 0;
-	}
+#if IS_ENABLED(CONFIG_MTK_UAC_POWER_SAVING)
+	if (!(xhci->quirks & XHCI_MTK_HOST))
+#endif
+		if (ring->type != TYPE_COMMAND && ring->type != TYPE_EVENT) {
+			num_trbs_in_deq_seg =
+				ring->dequeue - ring->deq_seg->trbs;
+			if (ring->num_trbs_free < num_trbs +
+				num_trbs_in_deq_seg)
+				return 0;
+		}
 
 	return 1;
 }
@@ -367,7 +372,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	 * In the future we should distinguish between -ENODEV and -ETIMEDOUT
 	 * and try to recover a -ETIMEDOUT with a host controller reset.
 	 */
-	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
+	ret = xhci_handshake_check_state(xhci, &xhci->op_regs->cmd_ring,
 			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
 		xhci_err(xhci, "Abort failed to stop command ring: %d\n", ret);
@@ -444,26 +449,6 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 	}
 }
 
-static struct xhci_virt_ep *xhci_get_virt_ep(struct xhci_hcd *xhci,
-					     unsigned int slot_id,
-					     unsigned int ep_index)
-{
-	if (slot_id == 0 || slot_id >= MAX_HC_SLOTS) {
-		xhci_warn(xhci, "Invalid slot_id %u\n", slot_id);
-		return NULL;
-	}
-	if (ep_index >= EP_CTX_PER_DEV) {
-		xhci_warn(xhci, "Invalid endpoint index %u\n", ep_index);
-		return NULL;
-	}
-	if (!xhci->devs[slot_id]) {
-		xhci_warn(xhci, "No xhci virt device for slot_id %u\n", slot_id);
-		return NULL;
-	}
-
-	return &xhci->devs[slot_id]->eps[ep_index];
-}
-
 /* Get the right ring for the given slot_id, ep_index and stream_id.
  * If the endpoint supports streams, boundary check the URB's stream ID.
  * If the endpoint doesn't support streams, return the singular endpoint ring.
@@ -474,10 +459,7 @@ struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 {
 	struct xhci_virt_ep *ep;
 
-	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
-	if (!ep)
-		return NULL;
-
+	ep = &xhci->devs[slot_id]->eps[ep_index];
 	/* Common case: no streams */
 	if (!(ep->ep_state & EP_HAS_STREAMS))
 		return ep->ring;
@@ -704,16 +686,11 @@ static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
 	dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
 			 DMA_FROM_DEVICE);
 	/* for in tranfers we need to copy the data from bounce to sg */
-	if (urb->num_sgs) {
-		len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
-					   seg->bounce_len, seg->bounce_offs);
-		if (len != seg->bounce_len)
-			xhci_warn(xhci, "WARN Wrong bounce buffer read length: %zu != %d\n",
-				  len, seg->bounce_len);
-	} else {
-		memcpy(urb->transfer_buffer + seg->bounce_offs, seg->bounce_buf,
-		       seg->bounce_len);
-	}
+	len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
+			     seg->bounce_len, seg->bounce_offs);
+	if (len != seg->bounce_len)
+		xhci_warn(xhci, "WARN Wrong bounce buffer read length: %zu != %d\n",
+				len, seg->bounce_len);
 	seg->bounce_len = 0;
 	seg->bounce_offs = 0;
 }
@@ -752,14 +729,11 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	memset(&deq_state, 0, sizeof(deq_state));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 
-	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
-	if (!ep)
-		return;
-
 	vdev = xhci->devs[slot_id];
 	ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
 	trace_xhci_handle_cmd_stop_ep(ep_ctx);
 
+	ep = &xhci->devs[slot_id]->eps[ep_index];
 	last_unlinked_td = list_last_entry(&ep->cancelled_td_list,
 			struct xhci_td, cancelled_td_list);
 
@@ -1083,11 +1057,9 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	stream_id = TRB_TO_STREAM_ID(le32_to_cpu(trb->generic.field[2]));
-	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
-	if (!ep)
-		return;
-
 	dev = xhci->devs[slot_id];
+	ep = &dev->eps[ep_index];
+
 	ep_ring = xhci_stream_id_to_ring(dev, ep_index, stream_id);
 	if (!ep_ring) {
 		xhci_warn(xhci, "WARN Set TR deq ptr command for freed stream ID %u\n",
@@ -1160,9 +1132,9 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	}
 
 cleanup:
-	ep->ep_state &= ~SET_DEQ_PENDING;
-	ep->queued_deq_seg = NULL;
-	ep->queued_deq_ptr = NULL;
+	dev->eps[ep_index].ep_state &= ~SET_DEQ_PENDING;
+	dev->eps[ep_index].queued_deq_seg = NULL;
+	dev->eps[ep_index].queued_deq_ptr = NULL;
 	/* Restart any rings with pending URBs */
 	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
@@ -1171,15 +1143,10 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		union xhci_trb *trb, u32 cmd_comp_code)
 {
 	struct xhci_virt_device *vdev;
-	struct xhci_virt_ep *ep;
 	struct xhci_ep_ctx *ep_ctx;
 	unsigned int ep_index;
 
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
-	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
-	if (!ep)
-		return;
-
 	vdev = xhci->devs[slot_id];
 	ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
 	trace_xhci_handle_cmd_reset_ep(ep_ctx);
@@ -1209,7 +1176,7 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		xhci_ring_cmd_db(xhci);
 	} else {
 		/* Clear our internal halted state */
-		ep->ep_state &= ~EP_HALTED;
+		xhci->devs[slot_id]->eps[ep_index].ep_state &= ~EP_HALTED;
 	}
 }
 
@@ -2385,13 +2352,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	ep_trb_dma = le64_to_cpu(event->buffer);
 
-	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
-	if (!ep) {
-		xhci_err(xhci, "ERROR Invalid Transfer event\n");
+	xdev = xhci->devs[slot_id];
+	if (!xdev) {
+		xhci_err(xhci, "ERROR Transfer event pointed to bad slot %u\n",
+			 slot_id);
 		goto err_out;
 	}
 
-	xdev = xhci->devs[slot_id];
+	ep = &xdev->eps[ep_index];
 	ep_ring = xhci_dma_to_transfer_ring(ep, ep_trb_dma);
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 
@@ -2470,7 +2438,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		break;
 	case COMP_SPLIT_TRANSACTION_ERROR:
 	case COMP_USB_TRANSACTION_ERROR:
-		xhci_dbg(xhci, "Transfer error for slot %u ep %u on endpoint\n",
+		xhci_warn_ratelimited(xhci, "Transfer error for slot %u ep %u on endpoint\n",
 			 slot_id, ep_index);
 		status = -EPROTO;
 		break;
@@ -2509,17 +2477,17 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * a Ring Overrun Event for IN Isoch endpoint or Ring
 		 * Underrun Event for OUT Isoch endpoint.
 		 */
-		xhci_dbg(xhci, "underrun event on endpoint\n");
+		xhci_warn_ratelimited(xhci, "underrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Underrun Event for slot %d ep %d "
+			xhci_warn_ratelimited(xhci, "Underrun Event for slot %d ep %d "
 					"still with TDs queued?\n",
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
 		goto cleanup;
 	case COMP_RING_OVERRUN:
-		xhci_dbg(xhci, "overrun event on endpoint\n");
+		xhci_warn_ratelimited(xhci, "overrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Overrun Event for slot %d ep %d "
+			xhci_warn_ratelimited(xhci, "Overrun Event for slot %d ep %d "
 					"still with TDs queued?\n",
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
@@ -2944,8 +2912,6 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[0] = cpu_to_le32(field1);
 	trb->field[1] = cpu_to_le32(field2);
 	trb->field[2] = cpu_to_le32(field3);
-	/* make sure TRB is fully written before giving it to the controller */
-	wmb();
 	trb->field[3] = cpu_to_le32(field4);
 
 	trace_xhci_queue_trb(ring, trb);
@@ -3289,16 +3255,12 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 
 	/* create a max max_pkt sized bounce buffer pointed to by last trb */
 	if (usb_urb_dir_out(urb)) {
-		if (urb->num_sgs) {
-			len = sg_pcopy_to_buffer(urb->sg, urb->num_sgs,
-						 seg->bounce_buf, new_buff_len, enqd_len);
-			if (len != new_buff_len)
-				xhci_warn(xhci, "WARN Wrong bounce buffer write length: %zu != %d\n",
-					  len, new_buff_len);
-		} else {
-			memcpy(seg->bounce_buf, urb->transfer_buffer + enqd_len, new_buff_len);
-		}
-
+		len = sg_pcopy_to_buffer(urb->sg, urb->num_sgs,
+				   seg->bounce_buf, new_buff_len, enqd_len);
+		if (len != new_buff_len)
+			xhci_warn(xhci,
+				"WARN Wrong bounce buffer write length: %zu != %d\n",
+				len, new_buff_len);
 		seg->bounce_dma = dma_map_single(dev, seg->bounce_buf,
 						 max_pkt, DMA_TO_DEVICE);
 	} else {
@@ -3903,6 +3865,17 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
 			start_cycle, start_trb);
+
+#if IS_ENABLED(CONFIG_MTK_UAC_POWER_SAVING)
+	if (!list_empty(&ep_ring->td_list) &&
+		!(xhci->quirks & XHCI_DEV_WITH_SYNC_EP)) {
+		unsigned int left_trbs = 0;
+
+		left_trbs = (ep_ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1) -
+				ep_ring->num_trbs_free;
+		xhci_mtk_allow_sleep(left_trbs, urb->dev->speed);
+	}
+#endif
 	return 0;
 cleanup:
 	/* Clean up a partially enqueued isoc transfer. */

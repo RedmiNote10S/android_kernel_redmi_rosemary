@@ -96,8 +96,6 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 	if (copy_from_user(&v32, (void __user *)arg, sizeof(v32)))
 		return -EFAULT;
 
-	memset(&v, 0, sizeof(v));
-
 	v = (struct drm_version) {
 		.name_len = v32.name_len,
 		.name = compat_ptr(v32.name),
@@ -136,9 +134,6 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 
 	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
 		return -EFAULT;
-
-	memset(&uq, 0, sizeof(uq));
-
 	uq = (struct drm_unique){
 		.unique_len = uq32.unique_len,
 		.unique = compat_ptr(uq32.unique),
@@ -264,8 +259,6 @@ static int compat_drm_getclient(struct file *file, unsigned int cmd,
 
 	if (copy_from_user(&c32, argp, sizeof(c32)))
 		return -EFAULT;
-
-	memset(&client, 0, sizeof(client));
 
 	client.idx = c32.idx;
 
@@ -849,8 +842,6 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	memset(&req, 0, sizeof(req));
-
 	req.request.type = req32.request.type;
 	req.request.sequence = req32.request.sequence;
 	req.request.signal = req32.request.signal;
@@ -887,8 +878,6 @@ static int compat_drm_mode_addfb2(struct file *file, unsigned int cmd,
 	struct drm_mode_fb_cmd232 __user *argp = (void __user *)arg;
 	struct drm_mode_fb_cmd2 req64;
 	int err;
-
-	memset(&req64, 0, sizeof(req64));
 
 	if (copy_from_user(&req64, argp,
 			   offsetof(drm_mode_fb_cmd232_t, modifier)))
@@ -976,6 +965,9 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	 * work.  This may not always be a good assumption, but it's better
 	 * than always failing.
 	 */
+#ifdef CONFIG_MTK_HDMI_SUPPORT
+	file_priv->authenticated = 1;
+#endif
 	if (nr >= ARRAY_SIZE(drm_compat_ioctls))
 		return drm_ioctl(filp, cmd, arg);
 

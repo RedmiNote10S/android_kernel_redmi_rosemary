@@ -41,6 +41,7 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
 #include "drm_internal.h"
+#include "mtk_drm_mmp.h"
 
 /** @file drm_gem.c
  *
@@ -213,6 +214,7 @@ static void drm_gem_object_exported_dma_buf_free(struct drm_gem_object *obj)
 {
 	/* Unbreak the reference cycle if we have an exported dma_buf. */
 	if (obj->dma_buf) {
+		DRM_MMP_MARK(dma_put, __LINE__, (unsigned long)obj->dma_buf);
 		dma_buf_put(obj->dma_buf);
 		obj->dma_buf = NULL;
 	}
@@ -730,6 +732,9 @@ err:
  * @file_priv: drm file-private structure
  *
  * Open an object using the global name, returning a handle and the size.
+ *
+ * This handle (of course) holds a reference to the object, so the object
+ * will not go away until the handle is deleted.
  */
 int
 drm_gem_open_ioctl(struct drm_device *dev, void *data,
@@ -754,15 +759,14 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 
 	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
 	ret = drm_gem_handle_create_tail(file_priv, obj, &handle);
+	drm_gem_object_put_unlocked(obj);
 	if (ret)
-		goto err;
+		return ret;
 
 	args->handle = handle;
 	args->size = obj->size;
 
-err:
-	drm_gem_object_put_unlocked(obj);
-	return ret;
+	return 0;
 }
 
 /**

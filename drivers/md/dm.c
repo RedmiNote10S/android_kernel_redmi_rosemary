@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/blkpg.h>
 #include <linux/bio.h>
@@ -474,7 +473,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 		 * subset of the parent bdev; require extra privileges.
 		 */
 		if (!capable(CAP_SYS_RAWIO)) {
-			DMDEBUG_LIMIT(
+			DMWARN_LIMIT(
 	"%s: sending ioctl %x to DM device without required privilege.",
 				current->comm, cmd);
 			r = -ENOIOCTLCMD;
@@ -2055,6 +2054,10 @@ static int dm_keyslot_evict_callback(struct dm_target *ti, struct dm_dev *dev,
 	struct dm_keyslot_evict_args *args = data;
 	int err;
 
+	/* set lock subclass to avoid lockdep wrong detect */
+	if (dev->bdev->bd_queue->ksm)
+		blk_crypto_flock(dev->bdev->bd_queue->ksm, SINGLE_DEPTH_NESTING);
+
 	err = blk_crypto_evict_key(dev->bdev->bd_queue, args->key);
 	if (!args->err)
 		args->err = err;
@@ -2111,6 +2114,10 @@ static int dm_derive_raw_secret_callback(struct dm_target *ti,
 		args->err = -EOPNOTSUPP;
 		return 0;
 	}
+
+	/* set lock subclass to avoid lockdep wrong detect */
+	if (dev->bdev->bd_queue->ksm)
+		blk_crypto_flock(dev->bdev->bd_queue->ksm, SINGLE_DEPTH_NESTING);
 
 	args->err = keyslot_manager_derive_raw_secret(q->ksm, args->wrapped_key,
 						args->wrapped_key_size,
@@ -2839,25 +2846,17 @@ EXPORT_SYMBOL_GPL(dm_internal_resume_fast);
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 		       unsigned cookie)
 {
-	int r;
-	unsigned noio_flag;
 	char udev_cookie[DM_COOKIE_LENGTH];
 	char *envp[] = { udev_cookie, NULL };
 
-	noio_flag = memalloc_noio_save();
-
 	if (!cookie)
-		r = kobject_uevent(&disk_to_dev(md->disk)->kobj, action);
+		return kobject_uevent(&disk_to_dev(md->disk)->kobj, action);
 	else {
 		snprintf(udev_cookie, DM_COOKIE_LENGTH, "%s=%u",
 			 DM_COOKIE_ENV_VAR_NAME, cookie);
-		r = kobject_uevent_env(&disk_to_dev(md->disk)->kobj,
-				       action, envp);
+		return kobject_uevent_env(&disk_to_dev(md->disk)->kobj,
+					  action, envp);
 	}
-
-	memalloc_noio_restore(noio_flag);
-
-	return r;
 }
 
 uint32_t dm_next_uevent_seq(struct mapped_device *md)

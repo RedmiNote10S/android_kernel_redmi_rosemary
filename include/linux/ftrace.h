@@ -742,7 +742,27 @@ static inline unsigned long get_lock_parent_ip(void)
 		return addr;
 	return CALLER_ADDR2;
 }
+static inline void record_preempt_disable_ips(struct task_struct *tsk)
+{
+#ifdef CONFIG_DEBUG_PREEMPT
+	int i = 0;
+	unsigned long *addrs = tsk->preempt_disable_ips;
 
+	for (i = 0; i < PREEMPT_DISABLE_DEEPTH; i++)
+		addrs[i] = (unsigned long) ftrace_return_address(i);
+#endif
+}
+
+static inline void dump_preempt_disable_ips(struct task_struct *tsk)
+{
+#ifdef CONFIG_DEBUG_PREEMPT
+	unsigned long *addrs = tsk->preempt_disable_ips;
+	int i = 0;
+
+	for (i = 0; i < PREEMPT_DISABLE_DEEPTH; i++)
+		print_ip_sym(addrs[i]);
+#endif
+}
 #ifdef CONFIG_IRQSOFF_TRACER
   extern void time_hardirqs_on(unsigned long a0, unsigned long a1);
   extern void time_hardirqs_off(unsigned long a0, unsigned long a1);
@@ -801,9 +821,7 @@ typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 /* for init task */
-#define INIT_FTRACE_GRAPH				\
-	.ret_stack		= NULL,			\
-	.tracing_graph_pause	= ATOMIC_INIT(0),
+#define INIT_FTRACE_GRAPH		.ret_stack = NULL,
 
 /*
  * Stack of return addresses for functions

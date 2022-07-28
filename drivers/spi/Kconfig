@@ -409,7 +409,7 @@ config SPI_MESON_SPIFC
 
 config SPI_MT65XX
 	tristate "MediaTek SPI controller"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	default n
 	help
 	  This selects the MediaTek(R) SPI bus driver.
 	  If you want to use MediaTek(R) SPI interface,
@@ -826,8 +826,5 @@ config SPI_SLAVE_SYSTEM_CONTROL
 	  off, halt, and suspend.
 
 endif # SPI_SLAVE
-
-config SPI_DYNAMIC
-	def_bool ACPI || OF_DYNAMIC || SPI_SLAVE
 
 endif # SPI
