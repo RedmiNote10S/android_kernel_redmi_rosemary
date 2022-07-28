@@ -254,7 +254,6 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 		io_tlb_orig_addr[i] = INVALID_PHYS_ADDR;
 	}
 	io_tlb_index = 0;
-	no_iotlb_memory = false;
 
 	if (verbose)
 		swiotlb_print_info();
@@ -286,11 +285,9 @@ swiotlb_init(int verbose)
 	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
 		return;
 
-	if (io_tlb_start) {
+	if (io_tlb_start)
 		memblock_free_early(io_tlb_start,
 				    PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
-		io_tlb_start = 0;
-	}
 	pr_warn("Cannot allocate buffer");
 	no_iotlb_memory = true;
 }
@@ -393,7 +390,6 @@ swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
 		io_tlb_orig_addr[i] = INVALID_PHYS_ADDR;
 	}
 	io_tlb_index = 0;
-	no_iotlb_memory = false;
 
 	swiotlb_print_info();
 
@@ -719,6 +715,9 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	void *ret;
 	int order = get_order(size);
 	u64 dma_mask = DMA_BIT_MASK(32);
+#ifdef CONFIG_MTK_BOUNCING_CHECK
+	dma_addr_t dev_addr_end;
+#endif
 
 	if (hwdev && hwdev->coherent_dma_mask)
 		dma_mask = hwdev->coherent_dma_mask;
@@ -732,6 +731,13 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 			 */
 			free_pages((unsigned long) ret, order);
 			ret = NULL;
+#ifdef CONFIG_MTK_BOUNCING_CHECK
+			dev_addr_end = dev_addr + size - 1;
+			aee_kernel_warning("Bounce Buffering",
+					"Incorrect dma_mask(%llx), addr+size-1(%pad)",
+					dma_mask, &dev_addr_end);
+
+#endif
 		}
 	}
 	if (!ret) {
