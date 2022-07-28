@@ -39,6 +39,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 
 		bio->bi_iter.bi_sector = map_swap_page(page, &bdev);
 		bio_set_dev(bio, bdev);
+		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
 		bio->bi_end_io = end_io;
 
 		for (i = 0; i < nr; i++)
@@ -261,6 +262,11 @@ out:
 	return ret;
 }
 
+static sector_t swap_page_sector(struct page *page)
+{
+	return (sector_t)__page_file_index(page) << (PAGE_SHIFT - 9);
+}
+
 static inline void count_swpout_vm_event(struct page *page)
 {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -297,6 +303,9 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		unlock_page(page);
 		ret = mapping->a_ops->direct_IO(&kiocb, &from);
 		if (ret == PAGE_SIZE) {
+#ifdef CONFIG_MTK_MLOG
+			current->swap_out++;
+#endif
 			count_vm_event(PSWPOUT);
 			ret = 0;
 		} else {
@@ -319,9 +328,11 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		return ret;
 	}
 
-	ret = bdev_write_page(sis->bdev, map_swap_page(page, &sis->bdev),
-			      page, wbc);
+	ret = bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc);
 	if (!ret) {
+#ifdef CONFIG_MTK_MLOG
+		current->swap_out++;
+#endif
 		count_swpout_vm_event(page);
 		return 0;
 	}
@@ -335,6 +346,9 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		goto out;
 	}
 	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
+#ifdef CONFIG_MTK_MLOG
+	current->swap_out++;
+#endif
 	count_swpout_vm_event(page);
 	set_page_writeback(page);
 	unlock_page(page);
@@ -374,18 +388,24 @@ int swap_readpage(struct page *page, bool do_poll)
 		struct address_space *mapping = swap_file->f_mapping;
 
 		ret = mapping->a_ops->readpage(swap_file, page);
-		if (!ret)
+		if (!ret) {
+#ifdef CONFIG_MTK_MLOG
+			current->swap_in++;
+#endif
 			count_vm_event(PSWPIN);
+		}
 		goto out;
 	}
 
-	ret = bdev_read_page(sis->bdev, map_swap_page(page, &sis->bdev), page);
+	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
 	if (!ret) {
 		if (trylock_page(page)) {
 			swap_slot_free_notify(page);
 			unlock_page(page);
 		}
-
+#ifdef CONFIG_MTK_MLOG
+		current->swap_in++;
+#endif
 		count_vm_event(PSWPIN);
 		goto out;
 	}
@@ -405,6 +425,9 @@ int swap_readpage(struct page *page, bool do_poll)
 	get_task_struct(current);
 	bio->bi_private = current;
 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+#ifdef CONFIG_MTK_MLOG
+	current->swap_in++;
+#endif
 	count_vm_event(PSWPIN);
 	bio_get(bio);
 	qc = submit_bio(bio);

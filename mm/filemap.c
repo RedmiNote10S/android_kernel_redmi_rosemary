@@ -2510,7 +2510,11 @@ int filemap_fault(struct vm_fault *vmf)
 		fpin = do_async_mmap_readahead(vmf, page);
 	} else if (!page) {
 		/* No page in the page cache at all */
+#ifdef CONFIG_MTK_MLOG
+		current->fm_flt++;
+#endif
 		count_vm_event(PGMAJFAULT);
+		count_vm_event(PGFMFAULT);
 		count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
 		ret = VM_FAULT_MAJOR;
 		fpin = do_sync_mmap_readahead(vmf);
@@ -2860,14 +2864,6 @@ filler:
 		unlock_page(page);
 		goto out;
 	}
-
-	/*
-	 * A previous I/O error may have been due to temporary
-	 * failures.
-	 * Clear page error before actual read, PG_error will be
-	 * set again if read page fails.
-	 */
-	ClearPageError(page);
 	goto filler;
 
 out:
