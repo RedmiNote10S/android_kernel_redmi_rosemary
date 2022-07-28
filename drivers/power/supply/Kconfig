@@ -596,8 +596,7 @@ config BATTERY_GOLDFISH
 
 config BATTERY_RT5033
 	tristate "RT5033 fuel gauge support"
-	depends on I2C
-	select REGMAP_I2C
+	depends on MFD_RT5033
 	help
 	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
 	  The fuelgauge calculates and determines the battery state of charge
@@ -610,5 +609,24 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
+
+config CUSTOM_BATTERY_EXTERNAL_CHANNEL
+	bool "customer external gauge test"
+	help
+	  This config is for internal testing only.
+	  If not required, select n
+	  Say Y to enable support for Customer external gauge.
+	  if unsure ,choose n.
+
+config MTBF_SUPPORT
+	bool "MTBF_SUPPORT"
+	help
+	  Say Y here to enable debugging mtbf
+	  and drivers.
+
+source "drivers/power/supply/mediatek/battery/Kconfig"
+source "drivers/power/supply/mediatek/charger/Kconfig"
+source "drivers/power/supply/ti/Kconfig"
+source "drivers/power/supply/maxim/Kconfig"
 
 endif # POWER_SUPPLY
