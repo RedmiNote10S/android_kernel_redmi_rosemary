@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -60,6 +61,7 @@ enum feature_id {
 	VOW_VENDOR_M_FEATURE_ID,
 	VOW_VENDOR_A_FEATURE_ID,
 	VOW_VENDOR_G_FEATURE_ID,
+	ULTRA_FEATURE_ID,
 	NUM_FEATURE_ID,
 };
 

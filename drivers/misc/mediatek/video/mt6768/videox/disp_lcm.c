@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,10 +21,16 @@
 #include "disp_drv_platform.h"
 #include "ddp_manager.h"
 #include "disp_lcm.h"
-
+#include "disp_feature.h"
 #if defined(MTK_LCM_DEVICE_TREE_SUPPORT)
 #include <linux/of.h>
 #endif
+#include <linux/delay.h>
+
+/* 2020.03.23 longcheer zhaoxiangxiang add for display feature start */
+extern void disp_aal_set_ess_level (int level);
+int esd_backlight_level;
+/* 2020.03.23 longcheer zhaoxiangxiang add for display feature end */
 
 /* This macro and arrya is designed for multiple LCM support */
 /* for multiple LCM, we should assign I/F Port id in lcm driver, */
@@ -1028,6 +1035,63 @@ void load_lcm_resources_from_DT(struct LCM_DRIVER *lcm_drv)
 }
 #endif
 
+//2020.03.19 longcheer zhaoxiangxiang add for hbm start
+static ssize_t dsi_display_set_cabc(struct device *dev,struct device_attribute *attr,const char *buf,size_t len)
+{
+
+        int rc = 0;
+        int param = 0;
+        rc = kstrtoint(buf, 10, &param);
+        if (rc) {
+                pr_err("kstrtoint failed. rc=%d\n", rc);
+                return rc;
+        }
+	pr_info("xinj:_###_%s,set_cabc_cmd: %d\n",__func__, param);
+        switch(param) {
+            case 0x1: //cabc ui on
+		disp_aal_set_ess_level(29);
+               break;
+            case 0x2: //cabc movie on
+		disp_aal_set_ess_level(88);
+               break;
+            case 0x03://cabc still on
+		disp_aal_set_ess_level(180);
+                break;
+            case 0x0://cabc off
+		disp_aal_set_ess_level(0);
+                break;
+             default:
+                pr_err("unknow cmds: %d\n", param);
+                break;
+        }
+        return len;
+}
+
+
+static DEVICE_ATTR(cabc_mode, 0644, NULL,dsi_display_set_cabc );
+static struct kobject *dsi_display_cabc;
+static int display_feature_create_sysfs(void)
+{
+   int ret;
+
+   dsi_display_cabc = kobject_create_and_add("display_cabc", NULL);
+   if(dsi_display_cabc == NULL) {
+     pr_info(" temp_create_sysfs_ failed\n");
+     ret=-ENOMEM;
+     return ret;
+   }
+
+   ret=sysfs_create_file(dsi_display_cabc, &dev_attr_cabc_mode.attr);
+   if(ret) {
+    pr_info("%s failed \n", __func__);
+    kobject_del(dsi_display_cabc);
+   }
+
+   return 0;
+}
+//2020.03.19 longcheer zhaoxiangxiang add for hbm end
+
+
 struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 	enum LCM_INTERFACE_ID lcm_id, int is_lcm_inited)
 {
@@ -1068,7 +1132,7 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 		}
 
 		lcmindex = 0;
-		}
+	} else
 #endif
 	if (_lcm_count() == 0) {
 		DISPERR("no lcm driver defined in linux kernel driver\n");
@@ -1153,6 +1217,10 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 
 	plcm->drv->get_params(plcm->params);
 	plcm->lcm_if_id = plcm->params->lcm_if;
+	//2020.03.19 longcheer zhaoxiangxiang add for hbm start
+	esd_backlight_level = 0;
+	display_feature_create_sysfs();
+	//2020.03.19 longcheer zhaoxiangxiang add for hbm end
 
 	/* below code is for lcm driver forward compatible */
 	if (plcm->params->type == LCM_TYPE_DSI
@@ -1405,6 +1473,9 @@ int disp_lcm_esd_recover(struct disp_lcm_handle *plcm)
 	return -1;
 }
 
+#if defined(CONFIG_TOUCHSCREEN_COMMON)
+extern tpd_gesture_flag;
+#endif
 int disp_lcm_suspend(struct disp_lcm_handle *plcm)
 {
 	struct LCM_DRIVER *lcm_drv = NULL;
@@ -1418,11 +1489,15 @@ int disp_lcm_suspend(struct disp_lcm_handle *plcm)
 			DISPERR("FATAL ERROR, lcm_drv->suspend is null\n");
 			return -1;
 		}
-
+#if defined(CONFIG_TOUCHSCREEN_COMMON)
+		if(!tpd_gesture_flag) {
+			if (lcm_drv->suspend_power)
+				lcm_drv->suspend_power();
+		}
+#else
 		if (lcm_drv->suspend_power)
 			lcm_drv->suspend_power();
-
-
+#endif
 		return 0;
 	}
 	DISPERR("lcm_drv is null\n");
@@ -1436,10 +1511,15 @@ int disp_lcm_resume(struct disp_lcm_handle *plcm)
 	DISPFUNC();
 	if (_is_lcm_inited(plcm)) {
 		lcm_drv = plcm->drv;
-
+#if defined(CONFIG_TOUCHSCREEN_COMMON)
+		if(!tpd_gesture_flag) {
+			if (lcm_drv->resume_power)
+				lcm_drv->resume_power();
+		}
+#else
 		if (lcm_drv->resume_power)
 			lcm_drv->resume_power();
-
+#endif
 
 		if (lcm_drv->resume) {
 			lcm_drv->resume();
@@ -1522,7 +1602,7 @@ int disp_lcm_set_backlight(struct disp_lcm_handle *plcm,
 		DISPERR("FATAL ERROR, lcm_drv->set_backlight is null\n");
 		return -1;
 	}
-
+	esd_backlight_level = level;
 	return 0;
 }
 

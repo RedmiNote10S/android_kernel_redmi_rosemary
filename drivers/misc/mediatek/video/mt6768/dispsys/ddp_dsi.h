@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -178,6 +179,7 @@ extern bool is_ipoh_bootup;
 extern char mtkfb_lcm_name[];
 extern long dts_gpio_state;
 
+
 int DSI_enable_checksum(enum DISP_MODULE_ENUM module,
 	struct cmdqRecStruct *cmdq);
 void DSI_ChangeClk(enum DISP_MODULE_ENUM module, UINT32 clk);
@@ -223,6 +225,10 @@ int ddp_dsi_read_lcm_cmdq(enum DISP_MODULE_ENUM module,
 		cmdqBackupSlotHandle *read_Slot,
 		struct cmdqRecStruct *cmdq_trigger_handle,
 		struct ddp_lcm_read_cmd_table *read_table);
+int ddp_dsi_read_lcm_cmdq_6785(enum DISP_MODULE_ENUM module,
+			cmdqBackupSlotHandle *read_Slot,
+			struct cmdqRecStruct *cmdq_trigger_handle,
+			struct dsi_cmd_desc *cmd_tab, unsigned int count);
 int ddp_dsi_write_lcm_cmdq(enum DISP_MODULE_ENUM module,
 		struct cmdqRecStruct *cmdq,
 		unsigned char cmd, unsigned char count,

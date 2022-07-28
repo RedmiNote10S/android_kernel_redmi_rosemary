@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -152,6 +153,9 @@ struct DDP_MMP_Events {
 	mmp_event primary_chg_fps_wait;
 	mmp_event primary_chg_fps_req;
 	mmp_event primary_chg_fps_notify;
+#ifdef CONFIG_ADB_WRITE_PARAM_FEATURE
+	mmp_event dsi_wrlcm;
+#endif
 };
 
 struct DDP_MMP_Events *ddp_mmp_get_events(void);

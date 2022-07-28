@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -106,6 +107,9 @@
 #include "mtk_ovl.h"
 #include "ddp_ovl_wcg.h"
 #include "disp_tphint.h"
+#include <linux/notifier.h>
+#include <linux/fb_notifier.h>
+
 
 /*if GPU use fb heap for compress buffer need turn on this marco*/
 /*#define ENLARGE_FB_FOR_COMPRESS*/
@@ -162,6 +166,35 @@ static ktime_t cmd_mode_update_timer_period;
 #endif
 static int is_fake_timer_inited;
 
+//start add for k7b
+static BLOCKING_NOTIFIER_HEAD(fb_drm_notifier_list);
+struct fb_drm_notify_data g_notify_data;
+int fb_drm_register_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&fb_drm_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(fb_drm_register_client);
+
+/**
+ *	fb_unregister_client - unregister a client notifier
+ *	@nb: notifier block to callback on events
+ */
+int fb_drm_unregister_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&fb_drm_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(fb_drm_unregister_client);
+
+/**
+ * fb_notifier_call_chain - notify clients of fb_events
+ *
+ */
+int fb_drm_notifier_call_chain(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&fb_drm_notifier_list, val, v);
+}
+EXPORT_SYMBOL_GPL(fb_drm_notifier_call_chain);
+//end 
 static struct task_struct *primary_display_switch_dst_mode_task;
 static struct task_struct *present_fence_release_worker_task;
 static struct task_struct *primary_path_aal_task;
@@ -191,6 +224,7 @@ DECLARE_WAIT_QUEUE_HEAD(decouple_update_rdma_wq);
 atomic_t decouple_trigger_event = ATOMIC_INIT(0);
 DECLARE_WAIT_QUEUE_HEAD(decouple_trigger_wq);
 wait_queue_head_t primary_display_present_fence_wq;
+static bool pf_thread_init;
 atomic_t primary_display_pt_fence_update_event = ATOMIC_INIT(0);
 atomic_t real_input_layer = ATOMIC_INIT(0);
 static unsigned int _need_lfr_check(void);
@@ -2940,23 +2974,23 @@ static struct disp_internal_buffer_info *allocat_decouple_buffer(int size)
 		goto err;
 	}
 
-	mm_data.config_buffer_param.kernel_handle = handle;
-	mm_data.mm_cmd = ION_MM_CONFIG_BUFFER;
+	mm_data.mm_cmd = ION_MM_GET_IOVA;
+	mm_data.get_phys_param.kernel_handle = handle;
+	mm_data.get_phys_param.module_id = 0;
+
 	if (ion_kernel_ioctl(client, ION_CMD_MULTIMEDIA,
 			     (unsigned long)&mm_data) < 0) {
 		DISP_PR_ERR("ion_test_drv: Config buffer failed.\n");
 		goto err;
 	}
-
-	ion_phys(client, handle, &buffer_mva, &mva_size);
-	if (buffer_mva == 0) {
+	if (mm_data.get_phys_param.phy_addr == 0) {
 		DISP_PR_ERR("Fatal Error, get mva failed\n");
 		goto err;
 	}
 
 	buf_info->handle = handle;
-	buf_info->mva = (uint32_t)buffer_mva;
-	buf_info->size = mva_size;
+	buf_info->mva = (uint32_t)mm_data.get_phys_param.phy_addr;
+	buf_info->size = mm_data.get_phys_param.len;
 	buf_info->va = buffer_va;
 #endif /* MTK_FB_ION_SUPPORT */
 
@@ -3566,7 +3600,7 @@ static void DC_config_nightlight(struct cmdqRecStruct *cmdq_handle)
 	if (all_zero)
 		DISP_PR_INFO("Night light backup param is zero matrix\n");
 	else
-		disp_ccorr_set_color_matrix(cmdq_handle, ccorr_matrix, mode);
+		disp_ccorr_set_color_matrix(cmdq_handle, ccorr_matrix, false, mode);
 }
 
 static int _decouple_update_rdma_config_nolock(void)
@@ -4039,43 +4073,20 @@ static int _present_fence_release_worker_thread(void *data)
 
 	sched_setscheduler(current, SCHED_RR, &param);
 
-	dpmgr_enable_event(pgc->dpmgr_handle, DISP_PATH_EVENT_IF_VSYNC);
-
 	while (1) {
-		int tl_pf;
-		struct disp_sync_info *l_info;
+		unsigned int pf_idx = 0;
 
 		wait_event_interruptible(primary_display_present_fence_wq,
 			atomic_read(&primary_display_pt_fence_update_event));
 
 		atomic_set(&primary_display_pt_fence_update_event, 0);
 
-		if (!islcmconnected && !primary_display_is_video_mode()) {
-			DISPCHECK("LCM Not Connected && CMD Mode\n");
-			msleep(20);
-#if 0
-		/*ToDo: ARR not need waiting until sof?*/
-		} else if (disp_helper_get_option(DISP_OPT_ARR_PHASE_1)) {
-			dpmgr_wait_event(pgc->dpmgr_handle,
-					 DISP_PATH_EVENT_FRAME_START);
-#endif
-		} else {
-			dpmgr_wait_event(pgc->dpmgr_handle,
-					 DISP_PATH_EVENT_IF_VSYNC);
-		}
-
-		tl_pf = disp_sync_get_present_timeline_id();
-		l_info = disp_sync_get_layer_info(primary_session_id, tl_pf);
-		if (!l_info) {
-			mmprofile_log_ex(
-			ddp_mmp_get_events()->primary_present_fence_release,
-				MMPROFILE_FLAG_PULSE, -1, 0x5a5a5a5a);
-			continue;
-		}
-
 		_primary_path_lock(__func__);
+		cmdqBackupReadSlot(pgc->cur_config_fence,
+			disp_sync_get_present_timeline_id(),
+			&pf_idx);
 		mtkfb_release_present_fence(primary_session_id,
-			gPresentFenceIndex);
+			pf_idx);
 		_primary_path_unlock(__func__);
 
 		if (atomic_read(&od_trigger_kick)) {
@@ -4600,6 +4611,7 @@ int primary_display_init(char *lcm_name, unsigned int lcm_fps,
 					_present_fence_release_worker_thread,
 					NULL, "present_fence_worker");
 		wake_up_process(present_fence_release_worker_task);
+		pf_thread_init = true;
 	}
 
 	if (disp_helper_get_option(DISP_OPT_PERFORMANCE_DEBUG)) {
@@ -5127,7 +5139,13 @@ int primary_display_suspend(void)
 	unsigned long long bandwidth;
 #endif
 	int active_cfg = 0;
+	int event = FB_DRM_BLANK_POWERDOWN;
+	g_notify_data.data = &event;
 
+	//START tp fb suspend
+	printk("-----FTS----primary_display_suspend_early");
+	fb_drm_notifier_call_chain(FB_DRM_EVENT_BLANK, &g_notify_data);
+	
 	DISPCHECK("%s begin\n", __func__);
 	mmprofile_log_ex(ddp_mmp_get_events()->primary_suspend,
 			 MMPROFILE_FLAG_START, 0, 0);
@@ -5317,11 +5335,15 @@ done:
 	aee_kernel_wdt_kick_Powkey_api("mtkfb_early_suspend",
 				       WDT_SETBY_Display);
 #endif
+	printk("-----FTS----primary_display_suspend");
+	fb_drm_notifier_call_chain(FB_DRM_EARLY_EVENT_BLANK, &g_notify_data);
 	primary_trigger_cnt = 0;
 	mmprofile_log_ex(ddp_mmp_get_events()->primary_suspend,
 			 MMPROFILE_FLAG_END, 0, 0);
 	DISPCHECK("%s end\n", __func__);
 	ddp_clk_check();
+	
+	
 	return ret;
 }
 
@@ -5425,7 +5447,14 @@ int primary_display_resume(void)
 	unsigned int in_fps = 60;
 	unsigned int out_fps = 60;
 #endif
+	
+	int event = FB_DRM_BLANK_UNBLANK;
+	g_notify_data.data = &event;
 
+	//START tp fb suspend
+	printk("-----FTS----primary_display_resume_early");
+	fb_drm_notifier_call_chain(FB_DRM_EARLY_EVENT_BLANK, &g_notify_data);
+	printk("---FTS---mt6785");
 	DISPCHECK("%s begin\n", __func__);
 	mmprofile_log_ex(ddp_mmp_get_events()->primary_resume,
 			 MMPROFILE_FLAG_START, 0, 0);
@@ -5788,6 +5817,9 @@ done:
 			 MMPROFILE_FLAG_END, 0, 0);
 	ddp_clk_check();
 
+	printk("-----FTS----primary_display_resume");
+	fb_drm_notifier_call_chain(FB_DRM_EVENT_BLANK, &g_notify_data);
+
 	disp_tphint_reset_status();
 
 	lcm_fps_ctx_reset(&lcm_fps_ctx);
@@ -6042,9 +6074,21 @@ done:
 	return ret;
 }
 
-void primary_display_update_present_fence(unsigned int fence_idx)
+void primary_display_update_present_fence(struct cmdqRecStruct *cmdq_handle,
+	unsigned int fence_idx)
 {
+	cmdqRecBackupUpdateSlot(cmdq_handle,
+		pgc->cur_config_fence,
+		disp_sync_get_present_timeline_id(),
+		fence_idx);
+
 	gPresentFenceIndex = fence_idx;
+}
+
+void primary_display_wakeup_pf_thread(void)
+{
+	if (!pf_thread_init)
+		return;
 	atomic_set(&primary_display_pt_fence_update_event, 1);
 	if (disp_helper_get_option(DISP_OPT_PRESENT_FENCE))
 		wake_up_interruptible(&primary_display_present_fence_wq);
@@ -7421,11 +7465,12 @@ static int primary_frame_cfg_input(struct disp_frame_cfg_t *cfg)
 			}
 		}
 		if (all_zero)
-			disp_aee_print("HWC set zero matrix\n");
+			DISP_PR_INFO("HWC set zero matrix\n");
 		else if (!primary_display_is_decouple_mode() &&
 			disp_helper_get_stage() == DISP_HELPER_STAGE_NORMAL) {
 			disp_ccorr_set_color_matrix(cmdq_handle,
 				m_ccorr_config.color_matrix,
+				m_ccorr_config.featureFlag,
 				m_ccorr_config.mode);
 
 			/* backup night params here */
@@ -7557,6 +7602,16 @@ int primary_display_frame_cfg(struct disp_frame_cfg_t *cfg)
 	primary_frame_cfg_input(cfg);
 	dprec_done(input_event, cfg->overlap_layer_num, 0);
 
+	if (cfg->present_fence_idx != (unsigned int)-1) {
+		struct cmdqRecStruct *cmdq_handle;
+
+		if (primary_display_is_decouple_mode())
+			cmdq_handle = pgc->cmdq_handle_ovl1to2_config;
+		else
+			cmdq_handle = pgc->cmdq_handle_config;
+		primary_display_update_present_fence(cmdq_handle, cfg->present_fence_idx);
+	}
+
 	if (cfg->output_en) {
 		/* set output */
 		dprec_start(output_event, cfg->present_fence_idx,
@@ -7577,8 +7632,6 @@ int primary_display_frame_cfg(struct disp_frame_cfg_t *cfg)
 
 	primary_display_trigger_nolock(0, NULL, 0);
 
-	if (cfg->present_fence_idx != (unsigned int)-1)
-		primary_display_update_present_fence(cfg->present_fence_idx);
 
 #ifdef CONFIG_MTK_HIGH_FRAME_RATE
 	/*DynFPS*/
@@ -10612,7 +10665,6 @@ unsigned int primary_display_is_support_DynFPS(void)
 {
 
 	if (disp_helper_get_option(DISP_OPT_DYNAMIC_FPS) &&
-		primary_display_is_video_mode() &&
 		disp_lcm_is_dynfps_support(pgc->plcm)) {
 		DISPDBG("%s,support DynFPS\n", __func__);
 		return 1;
@@ -11138,5 +11190,41 @@ void _primary_display_fps_change_callback(void)
 #endif
 /*-----------------DynFPS end-------------------------------*/
 #endif
+ #ifdef CONFIG_ADB_WRITE_PARAM_FEATURE
+int primary_display_set_panel_param(unsigned int param)
+{
+	int ret = DISP_STATUS_OK;
 
+	DISPFUNC();
+	mmprofile_log_ex(ddp_mmp_get_events()->dsi_wrlcm, MMPROFILE_FLAG_START, 0, 0);
+#ifdef DISP_SWITCH_DST_MODE
+	_primary_path_switch_dst_lock();
+#endif
+	_primary_path_lock(__func__);
+	if (pgc->state == DISP_SLEPT) {
+		DISPCHECK("Sleep State set display parameter invald\n");
+	} else {
+		if (primary_display_cmdq_enabled()) {
+			if (primary_display_is_video_mode()) {
+				mmprofile_log_ex(ddp_mmp_get_events()->dsi_wrlcm,
+					       MMPROFILE_FLAG_PULSE, 0, 7);
+				disp_lcm_set_param(pgc->plcm, param);
+			} else {
+				DISPCHECK("NOT video mode\n");
+				/* _set_backlight_by_cmdq(param); */
+			}
+		} else {
+			DISPCHECK("display cmdq NOT enabled\n");
+			/* _set_backlight_by_cpu(level); */
+		}
+	}
+	_primary_path_unlock(__func__);
+#ifdef DISP_SWITCH_DST_MODE
+	_primary_path_switch_dst_lock();
+#endif
+	mmprofile_log_ex(ddp_mmp_get_events()->dsi_wrlcm, MMPROFILE_FLAG_END, 0, 0);
+
+	return ret;
+}
+#endif
 

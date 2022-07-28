@@ -1392,6 +1392,9 @@ static void get_volt_table_in_thread(struct eem_det *det)
 
 	ndet = (det->loo_role == HIGH_BANK) ?
 		id_to_eem_det(det->loo_couple) : det;
+	if (ndet == NULL)
+		return;
+
 #endif
 	eem_debug("@@! In %s\n", __func__);
 	read_volt_from_VOP(det);
@@ -1882,7 +1885,7 @@ skip_update:
 static int eem_volt_thread_handler(void *data)
 {
 	struct eem_ctrl *ctrl = (struct eem_ctrl *)data;
-	struct eem_det *det = id_to_eem_det(ctrl->det_id);
+	struct eem_det *det;
 #ifdef CONFIG_EEM_AEE_RR_REC
 	int temp = -1;
 #endif
@@ -1893,6 +1896,10 @@ static int eem_volt_thread_handler(void *data)
 #endif
 
 	FUNC_ENTER(FUNC_LV_HELP);
+	if (ctrl == NULL)
+		return 0;
+
+	det = id_to_eem_det(ctrl->det_id);
 	if (det == NULL)
 		return 0;
 

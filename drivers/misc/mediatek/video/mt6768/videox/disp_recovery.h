@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +15,7 @@
 #ifndef _DISP_RECOVERY_H_
 #define _DISP_RECOVERY_H_
 #include "ddp_info.h"
+
 #include "ddp_dsi.h"
 
 #define GPIO_EINT_MODE	0
@@ -39,4 +41,11 @@ int do_lcm_vdo_lp_write(struct ddp_lcm_write_cmd_table *write_table,
 
 
 
+#ifdef CONFIG_ADB_WRITE_CMD_FEATURE
+int do_lcm_vdo_lp_read_6785(struct dsi_cmd_desc *cmd_tab,unsigned int count);
+int do_lcm_vdo_lp_read_without_lock(struct dsi_cmd_desc *cmd_tab,
+			unsigned int count);
+int do_lcm_vdo_lp_write_without_lock(struct dsi_cmd_desc *write_table,
+			unsigned int count);
 #endif
+#endif /* _DISP_RECOVERY_H_ */

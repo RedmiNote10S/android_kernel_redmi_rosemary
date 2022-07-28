@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,11 +19,19 @@
 #define DIFFERENCE_FULLOCV_ITH	200	/* mA */
 #define MTK_CHR_EXIST 1
 #define KEEP_100_PERCENT 1
+#if defined(CONFIG_SMB1351_USB_CHARGER)
+#define R_FG_VALUE	10				/* mOhm */
+#else
 #define R_FG_VALUE	5				/* mOhm */
+#endif
 #define EMBEDDED_SEL 0
 #define PMIC_SHUTDOWN_CURRENT 20	/* 0.01 mA */
 #define FG_METER_RESISTANCE	100
+#if defined(CONFIG_SMB1351_USB_CHARGER)
+#define CAR_TUNE_VALUE	99 /*1.00 */
+#else
 #define CAR_TUNE_VALUE	100 /*1.00 */
+#endif
 #define NO_BAT_TEMP_COMPENSATE 0
 /* NO_BAT_TEMP_COMPENSATE 1 = don't need bat_temper compensate, */
 /* but fg_meter_resistance still use for SWOCV */
@@ -76,13 +85,21 @@
 #define DIFFERENCE_FULL_CV 1000 /*0.01%*/
 #define PSEUDO1_EN 1
 #define PSEUDO100_EN 1
+#if defined(CONFIG_SMB1351_USB_CHARGER)
+#define PSEUDO100_EN_DIS 0
+#else
 #define PSEUDO100_EN_DIS 1
+#endif
 
 #define DIFF_SOC_SETTING 50	/* 0.01% */
 #define DIFF_BAT_TEMP_SETTING 1
 #define DIFF_BAT_TEMP_SETTING_C 10
 #define DISCHARGE_TRACKING_TIME 10
+#if defined(CONFIG_SMB1351_USB_CHARGER)
+#define CHARGE_TRACKING_TIME 30
+#else
 #define CHARGE_TRACKING_TIME 60
+#endif
 #define DIFFERENCE_FULLOCV_VTH	1000	/* 0.1mV */
 #define CHARGE_PSEUDO_FULL_LEVEL 8000
 #define FULL_TRACKING_BAT_INT2_MULTIPLY 6
@@ -92,7 +109,11 @@
 #define VBAT2_DET_TIME 5
 #define VBAT2_DET_COUNTER 6
 #define VBAT2_DET_VOLTAGE1	34500
+#if defined(CONFIG_SMB1351_USB_CHARGER)
+#define VBAT2_DET_VOLTAGE2	33000
+#else
 #define VBAT2_DET_VOLTAGE2	32000
+#endif
 #define VBAT2_DET_VOLTAGE3	35000
 
 /* PCB setting */
@@ -194,7 +215,7 @@
 
 
 #define SHUTDOWN_CONDITION_LOW_BAT_VOLT
-#define LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN 1
+#define LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN 0  /*changed for issue HTH-142150, not showdown in low temp. */
 #define LOW_TEMP_THRESHOLD 5
 
 #define BATTERY_TMP_TO_DISABLE_GM30 -50
