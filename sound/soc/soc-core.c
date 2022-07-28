@@ -2982,6 +2982,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
+	spin_lock_init(&card->dpcm_lock);
 
 	ret = snd_soc_instantiate_card(card);
 	if (ret != 0)
@@ -4046,7 +4047,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	if (!routes) {
 		dev_err(card->dev,
 			"ASoC: Could not allocate DAPM route table\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < num_routes; i++) {

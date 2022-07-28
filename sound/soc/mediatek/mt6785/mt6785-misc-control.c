@@ -3,6 +3,7 @@
 // MediaTek ALSA SoC Audio Misc Control
 //
 // Copyright (c) 2017 MediaTek Inc.
+// Copyright (C) 2021 XiaoMi, Inc.
 // Author: Eason Yen <eason.yen@mediatek.com>
 
 #include <linux/delay.h>
@@ -21,6 +22,11 @@
 
 #define SGEN_MUTE_CH1_KCONTROL_NAME "Audio_SineGen_Mute_Ch1"
 #define SGEN_MUTE_CH2_KCONTROL_NAME "Audio_SineGen_Mute_Ch2"
+
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+extern unsigned int elliptic_add_platform_controls(void *platform);
+#endif
+
 
 static const char * const mt6785_sgen_mode_str[] = {
 	"I0I1",   "I2",     "I3I4",   "I5I6",
@@ -1852,5 +1858,9 @@ int mt6785_add_misc_control(struct snd_soc_platform *platform)
 				      ARRAY_SIZE(mt6785_afe_bargein_controls));
 #endif
 
+	//for ellipitc mixer control
+#if defined(CONFIG_MTK_ULTRASND_PROXIMITY)
+	elliptic_add_platform_controls(platform);
+#endif
 	return 0;
 }
