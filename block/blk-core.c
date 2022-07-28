@@ -34,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/blk-cgroup.h>
 #include <linux/debugfs.h>
+#include <mt-plat/mtk_blocktag.h> /* MTK PATCH */
 #include <linux/psi.h>
 #include <linux/blk-crypto.h>
 
@@ -853,8 +854,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 		goto fail_stats;
 
 	q->backing_dev_info->ra_pages =
-			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
-	q->backing_dev_info->io_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
 	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
 	q->backing_dev_info->name = "block";
@@ -2300,6 +2299,9 @@ blk_qc_t submit_bio(struct bio *bio)
 			count_vm_events(PGPGIN, count);
 		}
 
+#ifdef CONFIG_MTK_BLOCK_TAG
+		mtk_btag_pidlog_submit_bio(bio);
+#endif
 		if (unlikely(block_dump)) {
 			char b[BDEVNAME_SIZE];
 			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
