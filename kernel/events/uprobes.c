@@ -1893,7 +1893,7 @@ static void handle_swbp(struct pt_regs *regs)
 	if (!uprobe) {
 		if (is_swbp > 0) {
 			/* No matching uprobe; signal SIGTRAP. */
-			force_sig(SIGTRAP, current);
+			send_sig(SIGTRAP, current, 0);
 		} else {
 			/*
 			 * Either we raced with uprobe_unregister() or we can't

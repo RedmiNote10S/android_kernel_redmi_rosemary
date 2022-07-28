@@ -20,6 +20,9 @@
 #include <linux/sched/idle.h>
 #include <linux/hypervisor.h>
 
+#if 1
+#include <linux/of.h>
+#endif
 #include "smpboot.h"
 
 enum {
@@ -103,12 +106,12 @@ void __init call_function_init(void)
  * previous function call. For multi-cpu calls its even more interesting
  * as we'll have to ensure no other cpu is observing our csd.
  */
-static __always_inline void csd_lock_wait(struct __call_single_data *csd)
+static __always_inline void csd_lock_wait(call_single_data_t *csd)
 {
 	smp_cond_load_acquire(&csd->flags, !(VAL & CSD_FLAG_LOCK));
 }
 
-static __always_inline void csd_lock(struct __call_single_data *csd)
+static __always_inline void csd_lock(call_single_data_t *csd)
 {
 	csd_lock_wait(csd);
 	csd->flags |= CSD_FLAG_LOCK;
@@ -121,7 +124,7 @@ static __always_inline void csd_lock(struct __call_single_data *csd)
 	smp_wmb();
 }
 
-static __always_inline void csd_unlock(struct __call_single_data *csd)
+static __always_inline void csd_unlock(call_single_data_t *csd)
 {
 	WARN_ON(!(csd->flags & CSD_FLAG_LOCK));
 
@@ -138,7 +141,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);
  * for execution on the given CPU. data must already have
  * ->func, ->info, and ->flags set.
  */
-static int generic_exec_single(int cpu, struct __call_single_data *csd,
+static int generic_exec_single(int cpu, call_single_data_t *csd,
 			       smp_call_func_t func, void *info)
 {
 	if (cpu == smp_processor_id()) {
@@ -323,7 +326,7 @@ EXPORT_SYMBOL(smp_call_function_single);
  * NOTE: Be careful, there is unfortunately no current debugging facility to
  * validate the correctness of this serialization.
  */
-int smp_call_function_single_async(int cpu, struct __call_single_data *csd)
+int smp_call_function_single_async(int cpu, call_single_data_t *csd)
 {
 	int err = 0;
 
@@ -564,7 +567,10 @@ void __init smp_init(void)
 {
 	int num_nodes, num_cpus;
 	unsigned int cpu;
-
+#if 1
+	struct device_node *dn = 0;
+	const char *smp_method = 0;
+#endif
 	idle_threads_init();
 	cpuhp_threads_init();
 
@@ -574,8 +580,20 @@ void __init smp_init(void)
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
 			break;
-		if (!cpu_online(cpu))
+		if (!cpu_online(cpu)) {
+#if 1
+			dn = of_get_cpu_node(cpu, NULL);
+			smp_method = of_get_property(dn, "smp-method", NULL);
+			if (smp_method != NULL) {
+				if (!strcmp("disabled", smp_method)) {
+					pr_info("CPU_%d SMP disabled!\n", cpu);
+					/*set_cpu_possible(cpu, false);*/
+					continue;
+				}
+			}
+#endif
 			cpu_up(cpu);
+		}
 	}
 
 	num_nodes = num_online_nodes();
