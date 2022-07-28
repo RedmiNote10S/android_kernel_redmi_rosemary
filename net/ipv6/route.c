@@ -125,7 +125,7 @@ struct uncached_list {
 
 static DEFINE_PER_CPU_ALIGNED(struct uncached_list, rt6_uncached_list);
 
-static void rt6_uncached_list_add(struct rt6_info *rt)
+void rt6_uncached_list_add(struct rt6_info *rt)
 {
 	struct uncached_list *ul = raw_cpu_ptr(&rt6_uncached_list);
 
@@ -136,7 +136,7 @@ static void rt6_uncached_list_add(struct rt6_info *rt)
 	spin_unlock_bh(&ul->lock);
 }
 
-static void rt6_uncached_list_del(struct rt6_info *rt)
+void rt6_uncached_list_del(struct rt6_info *rt)
 {
 	if (!list_empty(&rt->rt6i_uncached)) {
 		struct uncached_list *ul = rt->rt6i_uncached_list;
@@ -2604,6 +2604,30 @@ struct rt6_info *rt6_get_dflt_router(const struct in6_addr *addr, struct net_dev
 	return rt;
 }
 
+struct rt6_info *rt6_get_dflt_router_expires(struct net_device *dev)
+{
+	struct rt6_info *rt;
+	struct fib6_table *table;
+	#define RTF_ADGE (RTF_ADDRCONF | RTF_DEFAULT \
+		| RTF_GATEWAY | RTF_EXPIRES)
+
+	table = fib6_get_table(dev_net(dev),
+			       addrconf_rt_table(dev, RT6_TABLE_MAIN));
+	if (!table)
+		return NULL;
+
+	read_lock_bh(&table->tb6_lock);
+	for (rt = table->tb6_root.leaf; rt; rt = rt->dst.rt6_next) {
+		if (dev == rt->dst.dev &&
+		    ((rt->rt6i_flags & RTF_ADGE) == RTF_ADGE))
+			break;
+	}
+	if (rt)
+		dst_hold(&rt->dst);
+	read_unlock_bh(&table->tb6_lock);
+	return rt;
+}
+
 struct rt6_info *rt6_add_dflt_router(const struct in6_addr *gwaddr,
 				     struct net_device *dev,
 				     unsigned int pref)
@@ -3255,11 +3279,9 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		 * nexthops have been replaced by first new, the rest should
 		 * be added to it.
 		 */
-		if (cfg->fc_nlinfo.nlh) {
-			cfg->fc_nlinfo.nlh->nlmsg_flags &= ~(NLM_F_EXCL |
-							     NLM_F_REPLACE);
-			cfg->fc_nlinfo.nlh->nlmsg_flags |= NLM_F_CREATE;
-		}
+		cfg->fc_nlinfo.nlh->nlmsg_flags &= ~(NLM_F_EXCL |
+						     NLM_F_REPLACE);
+		cfg->fc_nlinfo.nlh->nlmsg_flags |= NLM_F_CREATE;
 		nhn++;
 	}
 

@@ -496,11 +496,11 @@ static void tnode_free(struct key_vector *tn)
 	struct callback_head *head = &tn_info(tn)->rcu;
 
 	while (head) {
+		tn = container_of(head, struct tnode, rcu)->kv;
+
 		head = head->next;
 		tnode_free_size += TNODE_SIZE(1ul << tn->bits);
 		node_free(tn);
-
-		tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
 	if (tnode_free_size >= PAGE_SIZE * sync_pages) {
@@ -1729,7 +1729,7 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		struct key_vector *local_l = NULL, *local_tp;
 
-		hlist_for_each_entry(fa, &l->leaf, fa_list) {
+		hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 			struct fib_alias *new_fa;
 
 			if (local_tb->tb_id != fa->tb_id)

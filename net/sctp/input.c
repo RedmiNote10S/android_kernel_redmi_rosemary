@@ -453,7 +453,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 		else {
 			if (!mod_timer(&t->proto_unreach_timer,
 						jiffies + (HZ/20)))
-				sctp_transport_hold(t);
+				sctp_association_hold(asoc);
 		}
 	} else {
 		struct net *net = sock_net(sk);
@@ -462,7 +462,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 			 "encountered!\n", __func__);
 
 		if (del_timer(&t->proto_unreach_timer))
-			sctp_transport_put(t);
+			sctp_association_put(asoc);
 
 		sctp_do_sm(net, SCTP_EVENT_T_OTHER,
 			   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
@@ -1081,8 +1081,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 		if (!af)
 			continue;
 
-		if (!af->from_addr_param(paddr, params.addr, sh->source, 0))
-			continue;
+		af->from_addr_param(paddr, params.addr, sh->source, 0);
 
 		asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
 		if (asoc)
@@ -1125,8 +1124,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 	if (unlikely(!af))
 		return NULL;
 
-	if (!af->from_addr_param(&paddr, param, peer_port, 0))
-		return NULL;
+	af->from_addr_param(&paddr, param, peer_port, 0);
 
 	return __sctp_lookup_association(net, laddr, &paddr, transportp);
 }
@@ -1197,7 +1195,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 
 		ch = (struct sctp_chunkhdr *)ch_end;
 		chunk_num++;
-	} while (ch_end + sizeof(*ch) < skb_tail_pointer(skb));
+	} while (ch_end < skb_tail_pointer(skb));
 
 	return asoc;
 }
