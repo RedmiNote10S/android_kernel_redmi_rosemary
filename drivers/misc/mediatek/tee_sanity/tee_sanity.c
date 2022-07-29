@@ -37,7 +37,6 @@ void mtk_set_prefer_bigcore(struct task_struct *current_task)
 
 void mtk_set_task_basic_util(struct task_struct *current_task)
 {
-	set_task_util_min_pct(current->pid, TEE_TASK_MIN_UTIL);
 }
 
 static void set_boot_to_kernel_time(void)
