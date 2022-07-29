@@ -1258,11 +1258,9 @@ static int aw87xxx_update_cfg_name(struct aw87xxx *aw87xxx)
 static int aw87xxx_read_chipid(struct aw87xxx *aw87xxx)
 {
 	unsigned int cnt = 0;
-	int ret = -1;
 	unsigned char reg_val = 0;
 
 	while (cnt < AW_READ_CHIPID_RETRIES) {
-		ret = aw87xxx_i2c_read(aw87xxx, AW87XXX_REG_CHIPID, &reg_val);
 		aw_dev_info(aw87xxx->dev,
 			"%s: the chip is aw87xxx chipid=0x%x\n",
 			__func__, reg_val);
