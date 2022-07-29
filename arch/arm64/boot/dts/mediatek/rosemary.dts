@@ -16,8 +16,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/mt6785-pinfunc.h>
-#include "mediatek/touchscreen.dtsi"
-#include "mediatek/cust_mt6785_fingerprint.dtsi"
+#include "touchscreen.dtsi"
+#include "cust_mt6785_fingerprint.dtsi"
 
 &reserved_memory {
 };
