@@ -331,6 +331,7 @@
 	}								\
 									\
 	/* Built-in firmware blobs */					\
+	ALIGN_FUNCTION();                            \
 	.builtin_fw        : AT(ADDR(.builtin_fw) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__start_builtin_fw) = .;			\
 		KEEP(*(.builtin_fw))					\
