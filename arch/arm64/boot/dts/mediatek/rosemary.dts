@@ -479,7 +479,6 @@
 	};
 }; /* IRTX GPIO Settings -End */
 
-#include <k85v1_64/cust.dtsi>
 #include "mediatek/cust_rosemary_camera.dtsi"
 //#include "mediatek/cust_mt6785_touch_1080x2160.dtsi"
 #include "mediatek/cust_aw87xxx_audio.dtsi"
