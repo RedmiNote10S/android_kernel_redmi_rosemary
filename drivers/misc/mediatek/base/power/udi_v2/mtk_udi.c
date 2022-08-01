@@ -474,15 +474,15 @@ static ssize_t udi_jtag_clock_proc_write(struct file *file,
 	memset(IR_byte, 0, sizeof(IR_byte));
 	memset(DR_byte, 0, sizeof(DR_byte));
 
-	/* input check format */
-	if (sscanf(buf, "%4s %u %u %512s %u %u %513s %u",
+	//* input check format */
+	if (sscanf(buf, "%4s %u %u %511s %u %u %511s %u",
 			&recv_key_word[0], &recv_buf[0],
 			&recv_buf[1], recv_char[0], &recv_buf[3],
 			&recv_buf[2], recv_char[1], &recv_buf[4]) == 8) {
 		/* 6 parameter */
 		IR_pause_count = recv_buf[3];
 		DR_pause_count = recv_buf[4];
-	} else if (sscanf(buf, "%4s %u %u %512s %u %513s",
+	} else if (sscanf(buf, "%4s %u %u %511s %u %511s",
 			&recv_key_word[0], &recv_buf[0],
 			&recv_buf[1], recv_char[0],
 			&recv_buf[2], recv_char[1]) == 6) {
