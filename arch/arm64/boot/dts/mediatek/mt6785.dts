@@ -5555,6 +5555,8 @@ page_owner=on loop.max_part=7";
 
 &i2c7 {
 	clock-frequency = <100000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	bq2597x-standalone@65 {
 		compatible = "ti,bq2597x-standalone";
 		reg = <0x65>;
@@ -5725,6 +5727,8 @@ page_owner=on loop.max_part=7";
 };
 
 &i2c6 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	speaker_amp: speaker_amp@34 {
 		compatible = "mediatek,speaker_amp";
 		#sound-dai-cells = <0>;
