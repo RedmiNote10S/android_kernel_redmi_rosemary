@@ -836,6 +836,8 @@ error:
 	dev->ir = NULL;
 	rc_free_device(rc);
 	kfree(ir);
+ref_put:
+	em28xx_shutdown_buttons(dev);
 	return err;
 }
 
