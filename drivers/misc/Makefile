@@ -67,7 +67,6 @@ obj-$(CONFIG_ANT_CHECK)		+= ant_check.o
 obj-$(CONFIG_ANT_CHECK_DIV)	+= ant_check_div.o
 obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
 obj-$(CONFIG_MEDIATEK_SOLUTION) += mediatek/
-obj-$(CONFIG_TARGET_PROJECT_K7B)	+=mi-memory/
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_heap.o

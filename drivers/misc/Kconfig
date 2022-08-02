@@ -572,5 +572,4 @@ source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/mediatek/Kconfig"
-source "drivers/misc/mi-memory/Kconfig"
 endmenu
