@@ -664,8 +664,6 @@ static int cp_reset_vbus_volt(void)
 {
 	int ret;
 	int voltage = 0;
-	int number = 0;
-	int i;
 	struct power_supply *psy;
 	struct power_supply *u_psy;
 	union power_supply_propval val = {0,};
