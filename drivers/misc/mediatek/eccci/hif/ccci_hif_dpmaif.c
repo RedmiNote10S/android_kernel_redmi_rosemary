@@ -353,7 +353,7 @@ static void dpmaif_dump_rxq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 			(rxq->bat_frag.skb_pkt_cnt *
 			sizeof(struct dpmaif_bat_page_t)));
 #endif
-#endif
+		
 	}
 }
 
@@ -419,6 +419,7 @@ static void dpmaif_dump_bat_status(struct hif_dpmaif_ctrl *hif_ctrl)
 }
 #endif
 
+/**
 static void dump_drb_queue_data(unsigned int qno)
 {
 	struct dpmaif_tx_queue *txq;
@@ -490,6 +491,7 @@ static void dump_drb_queue_data(unsigned int qno)
 	DPMA_DRB_DATA_INFO("DPMAIF [%s] for q:%d info: end --------\n",
 			__func__, qno);
 }
+**/
 
 /*actrually, length is dump flag's private argument*/
 static int dpmaif_dump_status(unsigned char hif_id,
