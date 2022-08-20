@@ -3283,49 +3283,30 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 					   gfp_t gfp_mask,
 					   bool may_swap)
 {
-	struct zonelist *zonelist;
+	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
 	unsigned long nr_reclaimed;
-	unsigned long pflags;
-	int nid;
-	unsigned int noreclaim_flag;
 	struct scan_control sc = {
 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
-		.gfp_mask = (current_gfp_context(gfp_mask) & GFP_RECLAIM_MASK) |
-				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
-		.reclaim_idx = MAX_NR_ZONES - 1,
 		.target_mem_cgroup = memcg,
-		.priority = DEF_PRIORITY,
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
+		.reclaim_idx = MAX_NR_ZONES - 1,
 		.may_swap = may_swap,
 	};
 
-	/*
-	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
-	 * take care of from where we get pages. So the node where we start the
-	 * scan does not need to be the current node.
-	 */
-	nid = mem_cgroup_select_victim_node(memcg);
+	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
 
-	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
-
-	trace_mm_vmscan_memcg_reclaim_begin(0,
+	trace_mm_vmscan_memcg_reclaim_begin(sc.order,
 					    sc.may_writepage,
 					    sc.gfp_mask,
 					    sc.reclaim_idx);
-
-	psi_memstall_enter(&pflags);
-	noreclaim_flag = memalloc_noreclaim_save();
-
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
-
-	memalloc_noreclaim_restore(noreclaim_flag);
-	psi_memstall_leave(&pflags);
-
 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
 
 	return nr_reclaimed;
 }
+
 #endif
 
 static void age_active_anon(struct pglist_data *pgdat,
