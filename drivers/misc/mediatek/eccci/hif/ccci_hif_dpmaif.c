@@ -353,7 +353,7 @@ static void dpmaif_dump_rxq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 			(rxq->bat_frag.skb_pkt_cnt *
 			sizeof(struct dpmaif_bat_page_t)));
 #endif
-		
+#endif		
 	}
 }
 
