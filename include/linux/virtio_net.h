@@ -98,14 +98,12 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 			struct flow_keys keys;
 
 			if (!skb->protocol) {
-				__be16 protocol = dev_parse_header_protocol(skb);
-
-				if (!protocol)
-					virtio_net_hdr_set_proto(skb, hdr);
-				else if (!virtio_net_hdr_match_proto(protocol, hdr->gso_type))
-					return -EINVAL;
-				else
+				__be16 protocol = skb_network_protocol(skb , 0);
+				if (virtio_net_hdr_match_proto(protocol,
+							       hdr->gso_type))
 					skb->protocol = protocol;
+				else
+					return -EINVAL;
 			}
 retry:
 			if (!skb_flow_dissect_flow_keys(skb, &keys, 0)) {
