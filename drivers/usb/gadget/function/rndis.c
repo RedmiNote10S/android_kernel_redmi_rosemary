@@ -1094,7 +1094,7 @@ void rndis_free_response(struct rndis_params *params, u8 *buf)
 
 	if (rndis_debug > 2)
 		RNDIS_DBG("\n");
-
+	spin_lock(&params->resp_lock);
 	list_for_each_safe(act, tmp, &(params->resp_queue)) {
 		if (!act)
 			continue;
@@ -1115,6 +1115,7 @@ u8 *rndis_get_next_response(struct rndis_params *params, u32 *length)
 
 	if (!length) return NULL;
 
+	spin_lock(&params->resp_lock);
 	list_for_each_safe(act, tmp, &(params->resp_queue)) {
 		r = list_entry(act, rndis_resp_t, list);
 		if (!r->send) {
@@ -1143,7 +1144,9 @@ static rndis_resp_t *rndis_add_response(struct rndis_params *params, u32 length)
 	r->length = length;
 	r->send = 0;
 
-	list_add_tail(&r->list, &(params->resp_queue));
+	spin_lock(&params->resp_lock);
+	list_add_tail(&r->list, &params->resp_queue);
+	spin_unlock(&params->resp_lock);
 	return r;
 }
 
