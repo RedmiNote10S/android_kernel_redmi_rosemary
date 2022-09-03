@@ -1158,6 +1158,7 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	mutex_lock(&udev->cmdr_lock);
 	page = tcmu_get_block_page(udev, dbi);
 	if (likely(page)) {
+		get_page(page);
 		mutex_unlock(&udev->cmdr_lock);
 		return page;
 	}
@@ -1226,6 +1227,7 @@ static int tcmu_vma_fault(struct vm_fault *vmf)
 		/* For the vmalloc()ed cmd area pages */
 		addr = (void *)(unsigned long)info->mem[mi].addr + offset;
 		page = vmalloc_to_page(addr);
+		get_page(page);
 	} else {
 		uint32_t dbi;
 
@@ -1236,7 +1238,6 @@ static int tcmu_vma_fault(struct vm_fault *vmf)
 			return VM_FAULT_NOPAGE;
 	}
 
-	get_page(page);
 	vmf->page = page;
 	return 0;
 }
