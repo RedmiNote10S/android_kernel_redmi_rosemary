@@ -22,6 +22,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/engine.h>
+#include <openssl/evp.h>
 
 #define PKEY_ID_PKCS7 2
 
@@ -91,8 +92,12 @@ int main(int argc, char **argv)
 {
 	char *cert_src;
 
-	OpenSSL_add_all_algorithms();
-	ERR_load_crypto_strings();
+#if OPENSSL_VERSION_MAJOR >= 3
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+#else
+	ERR_load_CRYPTO_strings();
+#endif
 	ERR_clear_error();
 
 	kbuild_verbose = atoi(getenv("KBUILD_VERBOSE")?:"0");
