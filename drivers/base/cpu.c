@@ -564,7 +564,7 @@ ssize_t __weak cpu_show_srbds(struct device *dev,
 ssize_t __weak cpu_show_mmio_stale_data(struct device *dev,
 					struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "Not affected\n");
+	return sprintf(buf, "Not affected\n");
 }
 
 static DEVICE_ATTR(meltdown, 0444, cpu_show_meltdown, NULL);
