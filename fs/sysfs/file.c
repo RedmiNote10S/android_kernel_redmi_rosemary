@@ -591,8 +591,7 @@ int sysfs_emit_at(char *buf, int at, const char *fmt, ...)
 	va_list args;
 	int len;
 
-	if (WARN(!buf || offset_in_page(buf) || at < 0 || at >= PAGE_SIZE,
-		 "invalid sysfs_emit_at: buf:%p at:%d\n", buf, at))
+	if (WARN(!buf, "invalid sysfs_emit_at: buf:%p\n", buf))
 		return 0;
 
 	va_start(args, fmt);
